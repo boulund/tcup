@@ -186,19 +186,28 @@ class Proteotyping_DB_wrapper():
     Wrapper for sqlite3 database.
     """
 
-    def __init__(self, ref_dbfile, samplename):
-        self.dbfile = samplename+".sqlite3"
-        if os.path.isfile(self.dbfile):
+    def __init__(self, sample_db, ref_dbfile=None):
+        self.dbfile = sample_db
+        if ref_dbfile and os.path.isfile(self.dbfile):
             sleep_time = 5
             logging.warning("About to delete pre-existing sample DB: %s", self.dbfile)
             logging.warning("Press Ctrl+c to cancel within %i sec...", sleep_time)
             time.sleep(sleep_time)
             os.remove(self.dbfile)
-        logging.debug("Copying reference DB (%s) to create new sample DB (%s)", ref_dbfile, self.dbfile)
-        shutil.copy(ref_dbfile, self.dbfile)
+            logging.debug("Copying reference DB (%s) to create new sample DB (%s)", ref_dbfile, self.dbfile)
+            shutil.copy(ref_dbfile, self.dbfile)
+        elif ref_dbfile:
+            logging.error("Cannot connect to non-existent DB file: %s", ref_dbfile)
+            exit(1)
+
         self.db = sqlite3.connect(self.dbfile)
-        logging.debug("Connected to sample DB %s", self.dbfile)
-        logging.debug("DB version: %s", self.db.execute("SELECT * FROM version").fetchall()[0])
+        logging.info("Connected to sample DB %s", self.dbfile)
+        try:
+            logging.info("DB version: %s", self.db.execute("SELECT * FROM version").fetchall()[0])
+        except sqlite3.OperationalError as msg:
+            logging.error("Incorrect or missing DB %s: %s", self.dbfile, msg)
+            exit(1)
+
 
 
     @staticmethod
@@ -255,9 +264,10 @@ class Proteotyping_DB_wrapper():
             query = self.db.execute(cmd, peptide)
             tracks = [map(int, t[0].split(",")) for t in query.fetchall()]
             lca = self.lowest_common_ancestor(tracks)
-            #rank, spname = self.db.execute("SELECT rank, spname FROM species WHERE taxid = ?", lca).fetchone()
-            #logging.debug("Peptide %s is discriminative at rank '%s' for %s", peptide[0], rank, spname)
-            self.db.execute("INSERT INTO discriminative VALUES (?, ?)", (peptide[0], lca[0]))
+            if lca[0] != 131567:  # taxid=131567 is "cellular organisms"
+                # TODO: verbose
+                #logging.debug("Peptide %s is discriminative at rank '%s' for %s", peptide[0], rank, spname)
+                self.db.execute("INSERT INTO discriminative VALUES (?, ?)", (peptide[0], lca[0]))
         self.db.commit()
 
 
@@ -312,22 +322,40 @@ class Proteotyping_DB_wrapper():
         result = self.db.execute(cmd, rank_set).fetchall()
         return result
 
+def print_discriminative_peptides(discriminative):
+    """
+    Print name and assignment of discriminative peptides.
+    """
+    print("-" * 60)
+    print("Discriminative peptides")
+    print("-" * 60)
+    print("{:<20} {:<15} {:<30}".format("Peptide", "Rank", "Description"))
+    for d in discriminative: 
+        print("{:<20} {:<15} {:<30}".format(*d))
 
-def main(filename, options):
+
+def print_peptides_per_spname(discriminative):
+    """
+    Print number of discriminative peptides per spname.
+    """
+    species_counts = Counter((species, rank) for pep, rank, species in discriminative)
+    print("-" * 60)
+    print("Discriminative peptides per spname")
+    print("-" * 60)
+    print("{:<6} {:<20} {:<40}".format("Count", "Rank", "Description"))
+    for species, count in species_counts.most_common():
+        print("{:<6} {:<20} {:<40}".format(count, species[1], species[0]))
+
+
+def main(options):
     """
     Main function that runs the complete pipeline logic.
     """
-    pass
-
-
-if __name__ == "__main__":
-
-    options = parse_commandline(argv)
-
     blacklisted_seqs = prepare_blacklist(options.blacklist, options.leave_out)
 
     for blat_file in options.FILE:
-        refdb = Proteotyping_DB_wrapper(options.db, blat_file)
+        refdb = Proteotyping_DB_wrapper(blat_file+".sqlite3", options.db) 
+        #refdb = Proteotyping_DB_wrapper(blat_file+".sqlite3") 
         blat_parser = parse_blat_output(blat_file, 
                 options.min_identity, 
                 options.min_matches, 
@@ -338,18 +366,12 @@ if __name__ == "__main__":
         refdb.determine_discriminative_ranks()
         disc = refdb.get_discriminative_at_rank(options.taxonomic_rank)
 
-        print("-" * 60)
-        print("Discriminative peptides")
-        print("-" * 60)
-        print("{:<20} {:<15} {:<30}".format("Peptide", "Rank", "Description"))
-        for d in disc: 
-            print("{:<20} {:<15} {:<30}".format(*d))
+        print_discriminative_peptides(disc)
+        print_peptides_per_spname(disc)
 
-        species_counts = Counter((species, rank) for pep, rank, species in disc)
-        print("-" * 60)
-        print("Discriminative peptides per spname")
-        print("-" * 60)
-        print("{:<6} {:<20} {:<40}".format("Count", "Rank", "Description"))
-        for species, count in species_counts.most_common():
-            print("{:<6} {:<20} {:<40}".format(count, species[1], species[0]))
 
+if __name__ == "__main__":
+
+    options = parse_commandline(argv)
+
+    main(options)
