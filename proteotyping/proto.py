@@ -31,12 +31,12 @@ def parse_commandline(argv):
     parser.add_argument("FILE", nargs="+",
             type=existing_file,
             help="BLAT output file.")
-    parser.add_argument("-d", dest="display", type=int, metavar="N",
-            default=10,
-            help="Number of results to display [%(default)s].")
-    parser.add_argument("--db", dest="db", metavar="DB", type=str,
+    parser.add_argument("--proteodb", dest="proteodb", metavar="DB", type=str,
             default="proteodb.sql",
             help="Path to proteotyping sqlite3 db [%(default)s]")
+    parser.add_argument("--sample_db", dest="sample_db", action="store_true",
+            default=False,
+            help="The supplied 'BLAT output file' is really a processed sample db with proteotyping results [%(default)s]")
     parser.add_argument("--taxonomic-rank", dest="taxonomic_rank", metavar="LVL", type=str,
             choices=["no rank", "subspecies", "species", "genus", "family", "order", "class", "phylum", "superkingdom"],
             default="family",
@@ -74,7 +74,7 @@ def parse_commandline(argv):
     devoptions.add_argument("--blacklist", metavar="FILE", dest="blacklist",
             default=None,
             type=existing_file,
-            help="File with sequence headers to blacklist (i.e. ignore when parsing blast8 output).")
+            help="File with sequence headers to blacklist (i.e. to ignore when parsing blast8 output).")
 
     if len(argv) < 2:
         parser.print_help()
@@ -347,6 +347,19 @@ def print_peptides_per_spname(discriminative):
         print("{:<6} {:<20} {:<40}".format(count, species[1], species[0]))
 
 
+def get_results_from_existing_db(options):
+    """
+    Retrieve results from an existing sample db.
+    """
+    for sample_db in options.FILE:
+        refdb = Proteotyping_DB_wrapper(sample_db)
+        disc = refdb.get_discriminative_at_rank(options.taxonomic_rank)
+
+        print(refdb.dbfile)
+        print_discriminative_peptides(disc)
+        print_peptides_per_spname(disc)
+
+
 def main(options):
     """
     Main function that runs the complete pipeline logic.
@@ -354,7 +367,7 @@ def main(options):
     blacklisted_seqs = prepare_blacklist(options.blacklist, options.leave_out)
 
     for blat_file in options.FILE:
-        refdb = Proteotyping_DB_wrapper(blat_file+".sqlite3", options.db) 
+        refdb = Proteotyping_DB_wrapper(blat_file+".sqlite3", options.proteodb) 
         #refdb = Proteotyping_DB_wrapper(blat_file+".sqlite3") 
         blat_parser = parse_blat_output(blat_file, 
                 options.min_identity, 
@@ -374,4 +387,7 @@ if __name__ == "__main__":
 
     options = parse_commandline(argv)
 
-    main(options)
+    if options.sample_db:
+        get_results_from_existing_db(options)
+    else:
+        main(options)
