@@ -41,6 +41,11 @@ def parse_commandline(argv):
             choices=["no rank", "subspecies", "species", "genus", "family", "order", "class", "phylum", "superkingdom"],
             default="family",
             help="Set the taxonomic level on which hits are grouped [%(default)s].")
+    parser.add_argument("--print-all-discriminative-peptides", 
+            dest="print_all_discriminative_peptides", 
+            action="store_true",
+            default=False,
+            help="Print all discriminative peptides [%(default)s].")
     parser.add_argument("--min-matches", dest="min_matches", metavar="L", type=int,
             default=6,
             help="Minimum peptide matches (i.e. peptide length) [%(default)s].")
@@ -326,9 +331,7 @@ def print_discriminative_peptides(discriminative):
     """
     Print name and assignment of discriminative peptides.
     """
-    print("-" * 60)
-    print("Discriminative peptides")
-    print("-" * 60)
+    print("Discriminative peptides".center(60, "-"))
     print("{:<20} {:<15} {:<30}".format("Peptide", "Rank", "Description"))
     for d in discriminative: 
         print("{:<20} {:<15} {:<30}".format(*d))
@@ -339,9 +342,7 @@ def print_peptides_per_spname(discriminative):
     Print number of discriminative peptides per spname.
     """
     species_counts = Counter((species, rank) for pep, rank, species in discriminative)
-    print("-" * 60)
-    print("Discriminative peptides per spname")
-    print("-" * 60)
+    print("Discriminative peptides per spname".center(60, "-"))
     print("{:<6} {:<20} {:<40}".format("Count", "Rank", "Description"))
     for species, count in species_counts.most_common():
         print("{:<6} {:<20} {:<40}".format(count, species[1], species[0]))
@@ -355,8 +356,9 @@ def get_results_from_existing_db(options):
         refdb = Proteotyping_DB_wrapper(sample_db)
         disc = refdb.get_discriminative_at_rank(options.taxonomic_rank)
 
-        print(refdb.dbfile)
-        print_discriminative_peptides(disc)
+        print(refdb.dbfile.center(60, "-"))
+        if options.print_all_discriminative_peptides:
+            print_discriminative_peptides(disc)
         print_peptides_per_spname(disc)
 
 
@@ -379,7 +381,9 @@ def main(options):
         refdb.determine_discriminative_ranks()
         disc = refdb.get_discriminative_at_rank(options.taxonomic_rank)
 
-        print_discriminative_peptides(disc)
+        print(refdb.dbfile.center(60, "-"))
+        if options.print_all_discriminative_peptides:
+            print_discriminative_peptides(disc)
         print_peptides_per_spname(disc)
 
 
