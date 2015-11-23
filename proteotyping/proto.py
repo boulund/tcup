@@ -34,7 +34,7 @@ def parse_commandline(argv):
     parser.add_argument("--proteodb", dest="proteodb", metavar="DB", type=str,
             default="proteodb.sql",
             help="Path to proteotyping sqlite3 db [%(default)s]")
-    parser.add_argument("--sample_db", dest="sample_db", action="store_true",
+    parser.add_argument("--sample-db", dest="sample_db", action="store_true",
             default=False,
             help="The supplied 'BLAT output file' is really a processed sample db with proteotyping results [%(default)s]")
     parser.add_argument("--taxonomic-rank", dest="taxonomic_rank", metavar="LVL", type=str,
