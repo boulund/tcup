@@ -49,7 +49,7 @@ def efetch_taxid(accno):
         return None
 
 
-def create_header_taxid_mappings(refdir, pattern, gi_taxid):
+def create_header_taxid_mappings(refdirs, pattern, gi_taxid):
     """
     Generates a list of header:taxid pairs using gi numbers in FASTA headers.
     
@@ -57,21 +57,22 @@ def create_header_taxid_mappings(refdir, pattern, gi_taxid):
     header is split on the first space character. 
     """
     logging.getLogger("requests").setLevel(logging.WARNING)
-    for fasta_file in find_files(refdir, pattern):
-        for seqinfo in read_fasta(fasta_file):
-            header = seqinfo[0].split()[0]
-            gi = int(header.split("gi|")[1].split("|")[0])
-            taxid = gi_taxid[gi]
-            if taxid:
-                yield header, taxid
-            else:
-                logging.debug("Found no taxid mapping for gi: %s in the taxdump db", header)
-                accno = header.split("ref|")[1].split("|")[0]
-                taxid = efetch_taxid(accno)
+    for refdir in refdirs:
+        for fasta_file in find_files(refdir, pattern):
+            for seqinfo in read_fasta(fasta_file):
+                header = seqinfo[0].split()[0]
+                gi = int(header.split("gi|")[1].split("|")[0])
+                taxid = gi_taxid[gi]
                 if taxid:
                     yield header, taxid
                 else:
-                    logging.debug("Found in taxid for accno: %s", accno)
+                    logging.debug("Found no taxid mapping for gi: %s in the taxdump db", header)
+                    accno = header.split("ref|")[1].split("|")[0]
+                    taxid = efetch_taxid(accno)
+                    if taxid:
+                        yield header, taxid
+                    else:
+                        logging.debug("Found no taxid for accno via NCBI E-utils: %s", accno)
 
 
 class Taxdump_DB_wrapper():
@@ -125,12 +126,12 @@ class Taxdump_DB_wrapper():
         return num_mappings
 
 
-def create_header_taxid_file(sqlite3db, refdir, gi_taxid_dmp, outfile):
+def create_header_taxid_file(sqlite3db, refdirs, gi_taxid_dmp, outfilename, globpattern_fasta):
     """
     Create a two column text file containing FASTA header->taxids mappings.
 
     :param sqlite3db:  path to sqlite3 database storing gi->taxid mappings.
-    :param refdir:  path to NCBI RefSeq base directory.
+    :param refdirs:  list of paths to NCBI RefSeq base directory.
     :param gi_taxid_dmp:  path to file 'gi_taxid_nucl.dmp' from NCBI 
             taxonomy dump.
     :param outfile:  file to write header->taxid mappings to.
@@ -142,10 +143,10 @@ def create_header_taxid_file(sqlite3db, refdir, gi_taxid_dmp, outfile):
     logging.debug("Database with %i entries created/loaded in %s seconds.", len(gi_taxid_db), time.time()-tic)
 
     tic = time.time()
-    logging.debug("Parsing FASTA files under %s ...", options.refdir)
-    logging.debug("Writing results to %s...", options.outfile)
-    header_taxids = create_header_taxid_mappings(options.refdir, options.globpattern_fasta, gi_taxid_db)
-    with open(options.outfile, "w") as outfile:
+    logging.debug("Parsing FASTA files under %s ...", refdirs)
+    logging.debug("Writing results to %s...", outfilename)
+    header_taxids = create_header_taxid_mappings(refdirs, globpattern_fasta, gi_taxid_db)
+    with open(outfilename, "w") as outfile:
         for count, header_taxid in enumerate(header_taxids, start=1):
             outfile.write("{}\t{}\n".format(*header_taxid))
     logging.debug("Parsed and wrote %i header:taxid mappings in %s seconds.", count, time.time()-tic)
@@ -191,19 +192,16 @@ class NCBITaxa_mod(NCBITaxa):
         :return:  None.
         """
         
-        creation_date = time.strftime("%Y-%M-%d")
+        creation_date = time.strftime("%Y-%m-%d")
         self.db.execute("DROP TABLE IF EXISTS version")
         self.db.execute("DROP TABLE IF EXISTS peptides")
         self.db.execute("DROP TABLE IF EXISTS discriminative")
         self.db.execute("DROP TABLE IF EXISTS refseqs")
-        self.db.execute("DROP TABLE IF EXISTS annotations")
         self.db.execute("CREATE TABLE version(created TEXT, refseq TEXT, taxonomy TEXT, comment TEXT)")
         self.db.execute("INSERT INTO version VALUES (?, ?, ?, ?)", (creation_date, refseq_ver, taxonomy_ver, comment))
         self.db.execute("CREATE TABLE peptides(peptide TEXT, target TEXT, start INT, end INT, identity INT, matches INT)")
         self.db.execute("CREATE TABLE discriminative(peptide TEXT PRIMARY KEY REFERENCES peptides(peptide), taxid INT REFERENCES species(taxid))")
         self.db.execute("CREATE TABLE refseqs(header TEXT PRIMARY KEY, taxid INT)")
-        self.db.execute("CREATE TABLE annotations(header TEXT REFERENCES refseqs(header), start INT, end INT, annotation TEXT)")
-        self.db.execute("CREATE TABLE gene(taxid TEXT REFERENCES species(taxid), gene_id INT PRIMARY KEY, symbol TEXT, description TEXT)")
 
     def insert_refseqs_into_db(self, refseqs):
         """
@@ -275,54 +273,6 @@ class NCBITaxa_mod(NCBITaxa):
             logging.debug("Finished writing SQL DB dump.")
 
 
-def parse_gff(filename):
-    """
-    Parse gene annotations from GFF file.
-
-    Parses GFF version 3 with the following columns:
-    1   sequence
-    2   source
-    3   feature
-    4   start
-    5   end
-    6   score
-    7   strand
-    8   phase
-    9   attributes
-
-    :param filename:  path to gff file.
-    :return:  (sequence, start, end, attributes)
-    """
-    with open(filename) as f:
-        logging.debug("Parsing %s...", filename)
-        line = f.readline()
-        if not line.startswith("##gff-version 3"):
-            raise Exception("Parse error, wrong gff version or not gff file.")
-        while line.startswith("#"):
-            line = f.readline()
-        while line:
-            try:
-                sequence, source, feature, start, end, score, strand, phase, attributes = line.split("\t")
-                yield (sequence, start, end, attributes)
-            except ValueError:
-                if line == "###":
-                    logging.debug("Reached end of %s", filename)
-                else:
-                    logging.error("Couldn't parse gff, the offending line was:\n%s", line)
-            line = f.readline()
-
-
-def parse_annotations(proteodb, annotations_dir, pattern):
-    """
-    Recursively find gff files in refdir.
-
-    """
-    for gff_file in find_files(annotations_dir, pattern):
-        for annotation_info in parse_gff(gff_file):
-            header = proteodb.find_refseq_header(annotation_info[0])
-            yield (header, *annotation_info[1:])
-
-
 def parse_refseqs(filename):
     """
     Parse refseq:taxid mappings from file.
@@ -334,20 +284,7 @@ def parse_refseqs(filename):
             yield header, int(taxid)
 
 
-def parse_gene_info(filename):
-    """
-    Parse tax_id, GeneID, Symbol, description from NCBI Gene (gene_info).
-    
-    :param filename:  path to NCBI gene_info file.
-    """
-    with open(filename) as f:
-        f.readline() # Skip the header line
-        for line in f:
-            taxid, geneid, symbol, _, _, _, _, _, description, *_ = line.split("\t")
-            yield (int(taxid), geneid, symbol, description)
-
-
-def prepare_db(dbfile, refseqs, gene_info, annotations_dir, globpattern_gff, taxonomy_ver, refseq_ver, comment):
+def prepare_db(dbfile, refseqs, gene_info, taxonomy_ver, refseq_ver, comment):
     """
     Prepare DB based on ETE3 NCBITaxa.
     """
@@ -355,8 +292,6 @@ def prepare_db(dbfile, refseqs, gene_info, annotations_dir, globpattern_gff, tax
     n = NCBITaxa_mod(dbfile)
     n.expand_taxonomy_db("2015-11-17", "2015-11-17", "second try")
     n.insert_refseqs_into_db(parse_refseqs(refseqs))
-    #n.insert_gene_info(parse_gene_info(gene_info))
-    #n.insert_annotations(parse_annotations(n, annotations_dir, globpattern_gff))
     #n.dump_db("taxonomy.db.gz")
 
 
@@ -365,21 +300,26 @@ def parse_commandline(argv):
     Parse commandline arguments.
     """
 
-    desc = """Prepare a proteotyping database. Fredrik Boulund (c) 2015."""
+    desc = """Prepare a proteotyping database. 
+    Step 1) Prepare a file with FASTA header->taxid mapping using sub-command
+    "header_mappings".
+    Step 2) Use the header->taxid mappings to create a ready-to-use 
+    proteotyping database (proteodb) to be filled in with sample data.
+    Fredrik Boulund (c) 2015."""
     parser = argparse.ArgumentParser(description=desc)
     subparsers = parser.add_subparsers(dest="subcommand", help="Choose a sub-command.")
 
     parser_refseqs = subparsers.add_parser("header_mappings", 
-            help="Prepare a list of 'sequence header->taxid' mappings for reference sequences.")
+            help="Prepare a list of 'sequence header->taxid' mappings based on gi:taxid mappings from NCBI RefSeq and NCBI Taxonomy taxdump.")
     parser_proteodb = subparsers.add_parser("proteodb",
             help="Prepare a proteotyping database based on NCBI Taxonomy.")
     
-    parser_refseqs.add_argument("refdir", 
+    parser_refseqs.add_argument("refdirs",  nargs="+",
             help="Path to NCBI RefSeq dir with sequences in FASTA format (*.fna). Walks subfolders.")
     parser_refseqs.add_argument("gi_taxid_dmp",
             help="Path to NCBI Taxonomy's 'gi_taxid_nucl.dmp'.")
     parser_refseqs.add_argument("--gi-taxid-db", dest="sqlite3db", type=existing_file,
-            help="Specify a premade sqlite3 database with a gi_taxid(gi int, taxid int) table.")
+            help="Specify a premade sqlite3 database with a gi_taxid(gi int, taxid int) table instad of creating a new one.")
     parser_refseqs.add_argument("--globpattern-fasta", dest="globpattern_fasta", type=str, metavar="'GLOB'",
             default="*.fna",
             help="Glob pattern for identifying FASTA files [%(default)s].")
@@ -394,21 +334,14 @@ def parse_commandline(argv):
             help="Log to file instead of STDOUT.")
 
     parser_proteodb.add_argument("header_mappings", 
-            help="Two column text file with header->taxid mappings")
-    parser_proteodb.add_argument("gene_info",
-            help="Path to tab separated NCBI gene_info file.")
-    parser_proteodb.add_argument("annotations_dir",
-            help="Path to directory containing annotation files (*.gff).")
+            help="Path to or filename of two column text file with header->taxid mappings")
     parser_proteodb.add_argument("--dbfile", type=str, dest="dbfile",
             default="proteodb.sql", 
             help="Filename to write the proteotyping database to [%(default)s].")
-    parser_proteodb.add_argument("--globpattern-gff", dest="globpattern_gff", type=str, metavar="'GLOB'",
-            default="*.gff",
-            help="Globpattern to find GFF files with in the annotations_dir.")
-    parser_proteodb.add_argument("--taxonomy-ver", dest="taxonomy_ver", type=str,
+    parser_proteodb.add_argument("--db-taxonomy-ver", dest="taxonomy_ver", type=str,
             default="",
             help="Specify Taxonomy version, e.g. '2015-11-15'.")
-    parser_proteodb.add_argument("--refseq-ver", dest="refseq_ver", type=str,
+    parser_proteodb.add_argument("--db-refseq-ver", dest="refseq_ver", type=str,
             default="",
             help="Specify RefSeq version, e.g. '2015-11-15'.")
     parser_proteodb.add_argument("--db-comment", dest="comment", type=str,
@@ -443,13 +376,11 @@ if __name__ == "__main__":
         create_header_taxid_file(options.sqlite3db, 
                 options.refdir, 
                 options.gi_taxid_dmp, 
-                options.outfile)
+                options.outfile,
+                options.globpattern_fasta)
     elif options.subcommand == "proteodb":
         prepare_db(options.dbfile, 
                 options.header_mappings, 
-                options.gene_info,
-                options.annotations_dir,
-                options.globpattern_gff,
                 options.taxonomy_ver, 
                 options.refseq_ver, 
                 options.comment)

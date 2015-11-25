@@ -17,9 +17,11 @@ import re
 try:
     from utils import find_files, grouper, existing_file
     from proteotyping_db import NCBITaxa_mod as NCBITaxa
+    from annotation_db import Annotation_DB_wrapper
 except ImportError:
     from proteotyping.utils import find_files, grouper, existing_file
     from proteotyping.proteotyping_db import NCBITaxa_mod as NCBITaxa
+    from proteotyping.annotation_db import Annotation_DB_wrapper
 
 
 def parse_commandline(argv):
@@ -33,7 +35,10 @@ def parse_commandline(argv):
             help="BLAT output file.")
     parser.add_argument("--proteodb", dest="proteodb", metavar="DB", type=str,
             default="proteodb.sql",
-            help="Path to proteotyping sqlite3 db [%(default)s]")
+            help="Path to proteotyping sqlite3 DB [%(default)s].")
+    parser.add_argument("--annotation-db", dest="annotation_db", metavar="FILE",
+            default="annotationdb.sql",
+            help="Path to annoation sqlite3 DB [%(default)s].")
     parser.add_argument("--sample-db", dest="sample_db", action="store_true",
             default=False,
             help="The supplied 'BLAT output file' is really a processed sample db with proteotyping results [%(default)s]")
@@ -327,6 +332,7 @@ class Proteotyping_DB_wrapper():
         result = self.db.execute(cmd, rank_set).fetchall()
         return result
 
+
 def print_discriminative_peptides(discriminative):
     """
     Print name and assignment of discriminative peptides.
@@ -352,6 +358,9 @@ def get_results_from_existing_db(options):
     """
     Retrieve results from an existing sample db.
     """
+
+    annotation_db = Annotation_DB_wrapper(options.annotation_db)
+
     for sample_db in options.FILE:
         refdb = Proteotyping_DB_wrapper(sample_db)
         disc = refdb.get_discriminative_at_rank(options.taxonomic_rank)
@@ -360,6 +369,11 @@ def get_results_from_existing_db(options):
         if options.print_all_discriminative_peptides:
             print_discriminative_peptides(disc)
         print_peptides_per_spname(disc)
+
+        hits = [("gi|152977688|ref|NC_009655.1|", 2500, 2700)]
+        annotation_db.get_hits_to_annotated_regions(hits)
+
+        
 
 
 def main(options):
