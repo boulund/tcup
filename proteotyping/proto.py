@@ -186,7 +186,7 @@ def parse_blat_output(filename, min_identity, min_matches,
             if len(filtered)>0:
                 num_remain_pep += 1
                 for hit in hitlist:
-                    yield peptide, hit[0], float(hit[1]), int(hit[2]), int(hit[3]), int(hit[4])
+                    yield peptide, hit[0], int(hit[3]), int(hit[4]), float(hit[1]), int(hit[2])
                     num_remain_hits += 1
         logging.info("%s hits for %s peptides remain after relative filtering.", num_remain_hits, num_remain_pep)
 
@@ -206,9 +206,12 @@ class Proteotyping_DB_wrapper():
             os.remove(self.dbfile)
             logging.debug("Copying reference DB (%s) to create new sample DB (%s)", ref_dbfile, self.dbfile)
             shutil.copy(ref_dbfile, self.dbfile)
-        elif ref_dbfile:
+        elif ref_dbfile and not os.path.isfile(ref_dbfile):
             logging.error("Cannot connect to non-existent DB file: %s", ref_dbfile)
             exit(1)
+        elif ref_dbfile:
+            logging.debug("Copying ref_dbfile %s to sample db location: %s", ref_dbfile, sample_db)
+            shutil.copy(ref_dbfile, self.dbfile)
 
         self.db = sqlite3.connect(self.dbfile)
         logging.info("Connected to sample DB %s", self.dbfile)
@@ -331,6 +334,17 @@ class Proteotyping_DB_wrapper():
           ORDER BY rank""".format(",".join("?"*len(rank_set)))
         result = self.db.execute(cmd, rank_set).fetchall()
         return result
+    
+    def get_peptide_hits(self, rank):
+        """
+        Retrieve all hits at or below a given rank, sorted by target sequence.
+
+        :param rank:  Rank at and below which to return hits.
+        :return:  List of hits to reference sequences, 
+                sorted by reference sequence headers.
+        """
+        
+        pass
 
 
 def print_discriminative_peptides(discriminative):
@@ -354,19 +368,25 @@ def print_peptides_per_spname(discriminative):
         print("{:<6} {:<20} {:<40}".format(count, species[1], species[0]))
 
 
-def get_results_from_existing_db(options):
+def get_results_from_existing_db(sample_databases,
+        annotation_db, 
+        taxonomic_rank="family", 
+        print_all_discriminative_peptides=False):
     """
     Retrieve results from an existing sample db.
     """
 
-    annotation_db = Annotation_DB_wrapper(options.annotation_db)
+    annotation_db = Annotation_DB_wrapper(annotation_db)
 
-    for sample_db in options.FILE:
-        refdb = Proteotyping_DB_wrapper(sample_db)
-        disc = refdb.get_discriminative_at_rank(options.taxonomic_rank)
+    for sample_db in sample_databases:
+        if type(sample_db) == Proteotyping_DB_wrapper:
+            refdb = sample_db
+        else: 
+            refdb = Proteotyping_DB_wrapper(sample_db)
+        disc = refdb.get_discriminative_at_rank(taxonomic_rank)
 
         print(refdb.dbfile.center(60, "-"))
-        if options.print_all_discriminative_peptides:
+        if print_all_discriminative_peptides:
             print_discriminative_peptides(disc)
         print_peptides_per_spname(disc)
 
@@ -384,7 +404,6 @@ def main(options):
 
     for blat_file in options.FILE:
         refdb = Proteotyping_DB_wrapper(blat_file+".sqlite3", options.proteodb) 
-        #refdb = Proteotyping_DB_wrapper(blat_file+".sqlite3") 
         blat_parser = parse_blat_output(blat_file, 
                 options.min_identity, 
                 options.min_matches, 
@@ -393,12 +412,11 @@ def main(options):
                 blacklisted_seqs)
         refdb.insert_blat_hits_into_db(blat_parser)
         refdb.determine_discriminative_ranks()
-        disc = refdb.get_discriminative_at_rank(options.taxonomic_rank)
 
-        print(refdb.dbfile.center(60, "-"))
-        if options.print_all_discriminative_peptides:
-            print_discriminative_peptides(disc)
-        print_peptides_per_spname(disc)
+        get_results_from_existing_db([refdb],
+                options.annotation_db,
+                options.taxonomic_rank,
+                options.print_all_discriminative_peptides)
 
 
 if __name__ == "__main__":
@@ -406,6 +424,9 @@ if __name__ == "__main__":
     options = parse_commandline(argv)
 
     if options.sample_db:
-        get_results_from_existing_db(options)
+        get_results_from_existing_db(options.FILE,
+                options.annotation_db,
+                options.taxonomic_rank,
+                options.print_all_discriminative_peptides)
     else:
         main(options)
