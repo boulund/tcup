@@ -277,10 +277,13 @@ class Proteotyping_DB_wrapper():
             query = self.db.execute(cmd, peptide)
             tracks = [map(int, t[0].split(",")) for t in query.fetchall()]
             lca = self.lowest_common_ancestor(tracks)
-            if lca[0] != 131567:  # taxid=131567 is "cellular organisms"
-                # TODO: verbose
-                #logging.debug("Peptide %s is discriminative at rank '%s' for %s", peptide[0], rank, spname)
-                self.db.execute("INSERT INTO discriminative VALUES (?, ?)", (peptide[0], lca[0]))
+            try:
+                if lca[0] != 131567:  # taxid=131567 is "cellular organisms"
+                    # TODO: verbose
+                    #logging.debug("Peptide %s is discriminative at rank '%s' for %s", peptide[0], rank, spname)
+                    self.db.execute("INSERT INTO discriminative VALUES (?, ?)", (peptide[0], lca[0]))
+            except IndexError:
+                logging.warning("Found no LCA for %s with tracks %s", peptide, tracks)
         self.db.commit()
 
 
