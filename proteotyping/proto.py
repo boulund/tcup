@@ -194,6 +194,11 @@ def parse_blat_output(filename, min_identity, min_matches,
 class Proteotyping_DB_wrapper():
     """ 
     Wrapper for sqlite3 database.
+
+    Stores a hard coded rank hierarchy based on the ranks seen 
+    in NCBI Taxonomy. Note the problematic "no rank" assignment
+    that can be encountered at different levels in the taxonomy, 
+    here incorrectly positioned to always be at the lowest rank.
     """
 
     def __init__(self, sample_db, ref_dbfile=None):
@@ -324,11 +329,6 @@ class Proteotyping_DB_wrapper():
     def get_discriminative_at_rank(self, rank):
         """
         Retrieve all discriminative peptides at the specified rank.
-
-        Stores a hard coded rank hierarchy based on the ranks seen 
-        in NCBI Taxonomy. Note the problematic "no rank" assignment
-        that can be encountered at different levels in the taxonomy, 
-        here incorrectly positioned to always be at the lowest rank.
         """
 
         rank_set = self.rank_hierarchy[self.ranks[rank]:]
