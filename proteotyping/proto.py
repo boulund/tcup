@@ -16,11 +16,9 @@ import re
 
 try:
     from utils import find_files, grouper, existing_file
-    from proteotyping_db import NCBITaxa_mod as NCBITaxa
     from annotation_db import Annotation_DB_wrapper
 except ImportError:
     from proteotyping.utils import find_files, grouper, existing_file
-    from proteotyping.proteotyping_db import NCBITaxa_mod as NCBITaxa
     from proteotyping.annotation_db import Annotation_DB_wrapper
 
 
@@ -262,6 +260,10 @@ class Proteotyping_DB_wrapper():
         self.ranks = {r: n for n, r in enumerate(self.rank_hierarchy)}
 
 
+        # Define a dictionary with (spname, count) tuples
+        self.cumulative_counts = defaultdict(int)
+
+
     @staticmethod
     def lowest_common_ancestor(lineages, common_lineage=False):
         """
@@ -314,7 +316,7 @@ class Proteotyping_DB_wrapper():
               JOIN peptides ON peptides.target = refseqs.header AND peptides.peptide = ?
             """
             query = self.db.execute(cmd, peptide)
-            tracks = [map(int, t[0].split(",")) for t in query.fetchall()]
+            tracks = [list(map(int, t[0].split(","))) for t in query.fetchall()]
             lca = self.lowest_common_ancestor(tracks)
             try:
                 if lca[0] != 131567:  # taxid=131567 is "cellular organisms"
@@ -323,7 +325,19 @@ class Proteotyping_DB_wrapper():
                     self.db.execute("INSERT INTO discriminative VALUES (?, ?)", (peptide[0], lca[0]))
             except IndexError:
                 logging.warning("Found no LCA for %s with tracks %s", peptide, [list(track) for track in tracks])
+
+            # Find the track lineage of the LCA to increment count on all
+            # lineage members.
+            lca_lineage_query = self.db.execute("SELECT track FROM species WHERE taxid = (?)", lca).fetchone()
+            lca_lineage = list(map(int, lca_lineage_query[0].split(",")))
+
+            # Get spname for each member of the LCA lineage.
+            lineage_spnames = []
+            for taxid in lca_lineage:
+                spname = self.db.execute("SELECT spname FROM species WHERE taxid = (?)", (taxid,)).fetchone()[0]
+                self.cumulative_counts[spname] += 1
         self.db.commit()
+
 
 
     def get_discriminative_at_rank(self, rank):
