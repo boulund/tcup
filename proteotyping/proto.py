@@ -283,7 +283,7 @@ class Proteotyping_DB_wrapper():
                     #logging.debug("Peptide %s is discriminative at rank '%s' for %s", peptide[0], rank, spname)
                     self.db.execute("INSERT INTO discriminative VALUES (?, ?)", (peptide[0], lca[0]))
             except IndexError:
-                logging.warning("Found no LCA for %s with tracks %s", peptide, tracks)
+                logging.warning("Found no LCA for %s with tracks %s", peptide, [list(track) for track in tracks])
         self.db.commit()
 
 
