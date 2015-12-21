@@ -197,6 +197,7 @@ class Proteotyping_DB_wrapper():
     """
 
     def __init__(self, sample_db, ref_dbfile=None):
+        # Setup SQLite DB references
         self.dbfile = sample_db
         if ref_dbfile and os.path.isfile(self.dbfile):
             sleep_time = 5
@@ -221,6 +222,39 @@ class Proteotyping_DB_wrapper():
             logging.error("Incorrect or missing DB %s: %s", self.dbfile, msg)
             exit(1)
 
+        # Define NCBI Taxonomy rank hierachy
+        self.rank_hierarchy = """
+        superkingdom
+        kingdom
+        subkingdom
+        superphylum
+        phylum
+        subphylum
+        class
+        superclass
+        subclass
+        infraclass
+        superorder
+        order
+        suborder
+        infraorder
+        parvorder
+        superfamily
+        family
+        subfamily
+        tribe
+        subtribe
+        genus
+        subgenus
+        species group
+        species subgroup
+        species
+        subspecies
+        varietas
+        forma
+        """.split()
+        self.rank_hierarchy.append("no rank")
+        self.ranks = {r: n for n, r in enumerate(self.rank_hierarchy)}
 
 
     @staticmethod
@@ -297,39 +331,7 @@ class Proteotyping_DB_wrapper():
         here incorrectly positioned to always be at the lowest rank.
         """
 
-        rank_hierarchy = """
-        superkingdom
-        kingdom
-        subkingdom
-        superphylum
-        phylum
-        subphylum
-        class
-        superclass
-        subclass
-        infraclass
-        superorder
-        order
-        suborder
-        infraorder
-        parvorder
-        superfamily
-        family
-        subfamily
-        tribe
-        subtribe
-        genus
-        subgenus
-        species group
-        species subgroup
-        species
-        subspecies
-        varietas
-        forma
-        """.split()
-        rank_hierarchy.append("no rank")
-        ranks = {r: n for n, r in enumerate(rank_hierarchy)}
-        rank_set = rank_hierarchy[ranks[rank]:]
+        rank_set = self.rank_hierarchy[self.ranks[rank]:]
 
         cmd = """SELECT peptide, rank, spname FROM discriminative
           JOIN species ON species.taxid = discriminative.taxid
@@ -337,6 +339,7 @@ class Proteotyping_DB_wrapper():
           ORDER BY rank""".format(",".join("?"*len(rank_set)))
         result = self.db.execute(cmd, rank_set).fetchall()
         return result
+
     
     def get_peptide_hits(self, rank):
         """
