@@ -187,7 +187,7 @@ class NCBITaxa_mod(NCBITaxa):
         :param refseq_ver:  String specifying what version of RefSeq was
                 when creating the db.
         :param taxonomy_ver:  String specifying what version of NCBI
-                Taxonomoy was used when creating the db.
+                Taxonomy was used when creating the db.
         :param comment:  String containing a comment describing the db.
         :return:  None.
         """
@@ -197,11 +197,13 @@ class NCBITaxa_mod(NCBITaxa):
         self.db.execute("DROP TABLE IF EXISTS peptides")
         self.db.execute("DROP TABLE IF EXISTS discriminative")
         self.db.execute("DROP TABLE IF EXISTS refseqs")
-        self.db.execute("CREATE TABLE version(created TEXT, refseq TEXT, taxonomy TEXT, comment TEXT)")
-        self.db.execute("INSERT INTO version VALUES (?, ?, ?, ?)", (creation_date, refseq_ver, taxonomy_ver, comment))
         self.db.execute("CREATE TABLE peptides(peptide TEXT, target TEXT, start INT, end INT, identity INT, matches INT)")
         self.db.execute("CREATE TABLE discriminative(peptide TEXT PRIMARY KEY REFERENCES peptides(peptide), taxid INT REFERENCES species(taxid))")
         self.db.execute("CREATE TABLE refseqs(header TEXT PRIMARY KEY, taxid INT)")
+        self.db.execute("CREATE TABLE version(created TEXT, refseq TEXT, taxonomy TEXT, comment TEXT)")
+        self.db.execute("ALTER TABLE species ADD COLUMN discriminative_count INT DEFAULT 0")
+        self.db.execute("INSERT INTO version VALUES (?, ?, ?, ?)", (creation_date, refseq_ver, taxonomy_ver, comment))
+        self.db.commit()
 
     def insert_refseqs_into_db(self, refseqs):
         """
@@ -284,13 +286,13 @@ def parse_refseqs(filename):
             yield header, int(taxid)
 
 
-def prepare_db(dbfile, refseqs, gene_info, taxonomy_ver, refseq_ver, comment):
+def prepare_db(dbfile, refseqs, taxonomy_ver, refseq_ver, comment):
     """
     Prepare DB based on ETE3 NCBITaxa.
     """
     
     n = NCBITaxa_mod(dbfile)
-    n.expand_taxonomy_db("2015-11-17", "2015-11-17", "second try")
+    n.expand_taxonomy_db(taxonomy_ver, refseq_ver, comment)
     n.insert_refseqs_into_db(parse_refseqs(refseqs))
     #n.dump_db("taxonomy.db.gz")
 

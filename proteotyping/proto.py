@@ -5,6 +5,7 @@
 
 from sys import argv, exit
 from collections import defaultdict, OrderedDict, Counter
+from itertools import groupby
 import shutil
 import sqlite3
 import gzip
@@ -226,37 +227,35 @@ class Proteotyping_DB_wrapper():
             exit(1)
 
         # Define NCBI Taxonomy rank hierachy
-        self.rank_hierarchy = """
-        superkingdom
-        kingdom
-        subkingdom
-        superphylum
-        phylum
-        subphylum
-        class
-        superclass
-        subclass
-        infraclass
-        superorder
-        order
-        suborder
-        infraorder
-        parvorder
-        superfamily
-        family
-        subfamily
-        tribe
-        subtribe
-        genus
-        subgenus
-        species group
-        species subgroup
-        species
-        subspecies
-        varietas
-        forma
-        """.split()
-        self.rank_hierarchy.append("no rank")
+        self.rank_hierarchy = ["superkingdom",
+                "kingdom",
+                "subkingdom",
+                "superphylum",
+                "phylum",
+                "subphylum",
+                "class",
+                "superclass",
+                "subclass",
+                "infraclass",
+                "superorder",
+                "order",
+                "suborder",
+                "infraorder",
+                "parvorder",
+                "superfamily",
+                "family",
+                "subfamily",
+                "tribe",
+                "subtribe",
+                "genus",
+                "subgenus",
+                "species group",
+                "species subgroup",
+                "species",
+                "subspecies",
+                "varietas",
+                "forma",
+                "no rank"]
         self.ranks = {r: n for n, r in enumerate(self.rank_hierarchy)}
 
 
@@ -326,16 +325,13 @@ class Proteotyping_DB_wrapper():
             except IndexError:
                 logging.warning("Found no LCA for %s with tracks %s", peptide, [list(track) for track in tracks])
 
-            # Find the track lineage of the LCA to increment count on all
+            # Find the track lineage of the LCA to increment discriminative_count on all
             # lineage members.
             lca_lineage_query = self.db.execute("SELECT track FROM species WHERE taxid = (?)", lca).fetchone()
             lca_lineage = list(map(int, lca_lineage_query[0].split(",")))
+            update_cmd = "UPDATE species SET discriminative_count = discriminative_count + 1 WHERE taxid IN ({})"
+            self.db.execute(update_cmd.format(",".join("?"*len(lca_lineage))), lca_lineage)
 
-            # Get spname for each member of the LCA lineage.
-            lineage_spnames = []
-            for taxid in lca_lineage:
-                spname = self.db.execute("SELECT spname FROM species WHERE taxid = (?)", (taxid,)).fetchone()[0]
-                self.cumulative_counts[spname] += 1
         self.db.commit()
 
 
@@ -354,6 +350,15 @@ class Proteotyping_DB_wrapper():
         result = self.db.execute(cmd, rank_set).fetchall()
         return result
 
+    def get_discriminative_counts(self):
+        """
+        Retrieve cumulative peptide counts across all ranks.
+        """
+
+        cmd = """SELECT discriminative_count, rank, spname FROM species 
+            WHERE discriminative_count > 0"""
+        result = self.db.execute(cmd).fetchall()
+        return result
     
     def get_peptide_hits(self, rank):
         """
@@ -365,6 +370,23 @@ class Proteotyping_DB_wrapper():
         """
         
         pass
+
+def print_cumulative_discriminative_counts(disc_peps_per_rank, ranks):
+    """
+    Print sorted lists of discriminative peptide counts across all ranks.
+    """
+
+    sorted_disc_peps_per_rank =sorted(disc_peps_per_rank, key=lambda entry: ranks[entry[1]])
+    for rank, group in groupby(sorted_disc_peps_per_rank, key=lambda entry: ranks[entry[1]]):
+        for count, rank, spname in sorted(group, reverse=True):
+            if spname in ("root", "cellular organisms"):
+                continue
+            print("{:<6} {:<20} {:<40}".format(count, rank, spname))
+    for count, rank, spname in sorted(disc_peps_per_rank, reverse=True):
+        if spname in ("root", "cellular organisms"):
+            continue
+        print("{:<6} {:<20} {:<40}".format(count, rank, spname))
+
 
 
 def print_discriminative_peptides(discriminative):
@@ -390,8 +412,9 @@ def print_peptides_per_spname(discriminative):
 
 def get_results_from_existing_db(sample_databases,
         annotation_db, 
-        taxonomic_rank="family", 
-        print_all_discriminative_peptides=False):
+        taxonomic_rank="family",
+        print_all_discriminative_peptides=False,
+        print_cumulative_counts=True):
     """
     Retrieve results from an existing sample db.
     """
@@ -409,6 +432,11 @@ def get_results_from_existing_db(sample_databases,
         if print_all_discriminative_peptides:
             print_discriminative_peptides(disc)
         print_peptides_per_spname(disc)
+
+        print(refdb.dbfile.center(60, "-"))
+        disc_peps_per_rank = refdb.get_discriminative_counts()
+        if print_cumulative_counts:
+            print_cumulative_discriminative_counts(disc_peps_per_rank, refdb.ranks)
 
         hits = [("gi|152977688|ref|NC_009655.1|", 2500, 2700)]
         annotation_db.get_hits_to_annotated_regions(hits)
