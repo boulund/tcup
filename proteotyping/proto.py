@@ -371,17 +371,19 @@ class Proteotyping_DB_wrapper():
         
         pass
 
+
 def print_cumulative_discriminative_counts(disc_peps_per_rank, ranks):
     """
     Print sorted lists of discriminative peptide counts across all ranks.
     """
 
     sorted_disc_peps_per_rank =sorted(disc_peps_per_rank, key=lambda entry: ranks[entry[1]])
-    for rank, group in groupby(sorted_disc_peps_per_rank, key=lambda entry: ranks[entry[1]]):
-        for count, rank, spname in sorted(group, reverse=True):
-            if spname in ("root", "cellular organisms"):
-                continue
-            print("{:<6} {:<20} {:<40}".format(count, rank, spname))
+    # Removed this printout because it is too messy and non-informative.
+    #for rank, group in groupby(sorted_disc_peps_per_rank, key=lambda entry: ranks[entry[1]]):
+    #    for count, rank, spname in sorted(group, reverse=True):
+    #        if spname in ("root", "cellular organisms"):
+    #            continue
+    #        print("{:<6} {:<20} {:<40}".format(count, rank, spname))
     for count, rank, spname in sorted(disc_peps_per_rank, reverse=True):
         if spname in ("root", "cellular organisms"):
             continue
