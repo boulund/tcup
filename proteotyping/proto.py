@@ -258,11 +258,6 @@ class Proteotyping_DB_wrapper():
                 "no rank"]
         self.ranks = {r: n for n, r in enumerate(self.rank_hierarchy)}
 
-
-        # Define a dictionary with (spname, count) tuples
-        self.cumulative_counts = defaultdict(int)
-
-
     @staticmethod
     def lowest_common_ancestor(lineages, common_lineage=False):
         """
