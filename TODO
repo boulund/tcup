@@ -1,3 +1,4 @@
 # TODO
 
  * Fail early for missing database files (e.g. proteodb.sql or annotationdb.sql).
+ * Finish installation instructions in README.
