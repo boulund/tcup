@@ -12,10 +12,10 @@ import logging
 
 try: 
     from proteotyping.utils import read_fasta, find_files, grouper, existing_file
-    from proteotyping.proteotyping_db import NCBITaxa_mod as Proteotyping_DB_wrapper
+    from proteotyping.proteotyping_db import NCBITaxa_mod as Taxref_DB_wrapper
 except ImportError:
     from utils import read_fasta, find_files, grouper, existing_file
-    from proteotyping_db import NCBITaxa_mod as Proteotyping_DB_wrapper
+    from proteotyping_db import NCBITaxa_mod as Taxref_DB_wrapper
 
 
 def parse_args(argv):
@@ -28,10 +28,8 @@ def parse_args(argv):
     """
     parser = argparse.ArgumentParser(description=desc)
 
-    parser.add_argument("gene_info",
-            help="Path to NCBI Gene 'gene_info' file.")
-    parser.add_argument("proteodb", type=existing_file,
-            help="Path to existing proteotyping DB.")
+    parser.add_argument("taxref", type=existing_file, 
+            help="Path to existing taxref DB.")
     parser.add_argument("annotation_dirs", nargs="+",
             help="Path to root dir(s) containing annotation files (*.gff).")
     parser.add_argument("--db-filename", dest="db_filename",
@@ -40,8 +38,6 @@ def parse_args(argv):
     parser.add_argument("--glob-pattern-gff", dest="glob_pattern_gff",
             default="*.gff",
             help="Glob pattern for gff files [%(default)s].")
-    parser.add_argument("--db-comment",
-            help="A comment to be added to the database's version table")
     parser.add_argument("--loglevel", choices=["INFO", "DEBUG"], 
             default="DEBUG", 
             help="Set logging level [%(default)s].")
@@ -148,14 +144,14 @@ def parse_gff(filename):
             line = f.readline()
 
 
-def parse_annotations(proteodb, annotations_dir, pattern):
+def parse_annotations(taxref_db, annotations_dir, pattern):
     """
     Recursively find gff files in refdir.
 
     """
     for gff_file in find_files(annotations_dir, pattern):
         for annotation_info in parse_gff(gff_file):
-            header = proteodb.find_refseq_header(annotation_info[0])
+            header = taxref_db.find_refseq_header(annotation_info[0])
             yield (header, *annotation_info[1:])
 
 
@@ -164,60 +160,29 @@ class Annotation_DB_wrapper():
     Wrapper for annotation DB.
     """
 
-    def __init__(self, dbfile, comment=None, create_db=False):
-        if create_db:
-            if os.path.isfile(dbfile):
-                logging.warning("About to overwrite existing DB: %s", dbfile)
-                time.sleep(1)
-                os.remove(dbfile)
-            self.dbfile = dbfile
-            self.db = sqlite3.connect(dbfile)
+    def __init__(self, dbfile):
+        if os.path.isfile(dbfile):
+            logging.warning("About to overwrite existing DB: %s", dbfile)
+            time.sleep(1)
+            os.remove(dbfile)
+        self.dbfile = dbfile
+        self.db = sqlite3.connect(dbfile)
 
-            self.db.execute("DROP TABLE IF EXISTS annotations")
-            self.db.execute("DROP TABLE IF EXISTS gene_info")
-            self.db.execute("DROP TABLE IF EXISTS version")
-            self.db.execute("CREATE TABLE annotations (header TEXT, start INT, end INT, attributes)")
-            self.db.execute("CREATE TABLE gene_info (taxid INT, geneid INT, symbol TEXT, description TEXT)")
-            self.db.execute("CREATE TABLE version (comment TEXT)")
-            if comment:
-                self.db.execute("INSERT INTO version VALUES (?)", (comment,))
-                self.db.commit()
-        else:
-            if os.path.isfile(dbfile):
-                self.dbfile = dbfile
-                self.db = sqlite3.connect(dbfile)
-                tables = self.db.execute("SELECT * FROM sqlite_master").fetchall()
-                logging.debug("Connected to annotation db %s with tables: %s", dbfile, tables)
-            else:
-                logging.error("Found no annotation db at: %s", dbfile)
-                exit(1)
+        self.db.execute("CREATE TABLE annotations (header TEXT, start INT, end INT, features TEXT)")
 
     def insert_annotations(self, annotation_data):
         """
         Insert annotation data into the DB.
 
         :param annotation_data:  Iterator of tuples with annotation info.
-                (header, start, end, attributes)
+                (header, start, end, features)
         """
 
         self.db.executemany("INSERT INTO annotations VALUES (?,?,?,?)", annotation_data)
         records = self.db.execute("SELECT Count(*) FROM annotations").fetchone()[0]
-        logging.info("Table annotations now contains %s records.", records)
+        logging.info("Inserted %s annotation records.", records)
         # TODO: Create index on start and end columns
         self.db.commit()
-
-    def insert_gene_info(self, gene_info):
-        """
-        Insert gene_info into the DB.
-        
-        :param gene_info:  Iterator with tuples of gene_info,
-                (taxid, geneid, symbol, description)
-        """
-        self.db.executemany("INSERT INTO gene_info VALUES (?,?,?,?)", gene_info)
-        records = self.db.execute("SELECT Count(*) FROM gene_info").fetchone()[0]
-        logging.info("Table gene_info now contains %s records.", records)
-        self.db.commit()
-
 
 
 
@@ -225,11 +190,10 @@ if __name__ == "__main__":
 
     options = parse_args(sys.argv)
 
-    proteodb = Proteotyping_DB_wrapper(options.proteodb)
-    annotation_db = Annotation_DB_wrapper(options.db_filename, options.db_comment, create_db=True)
+    taxref_db = Taxref_DB_wrapper(options.taxref)
+    annotation_db = Annotation_DB_wrapper(options.db_filename)
     for annotations_dir in options.annotation_dirs:
-        annotation_generator = parse_annotations(proteodb, annotations_dir, options.glob_pattern_gff)
+        annotation_generator = parse_annotations(taxref_db, annotations_dir, options.glob_pattern_gff)
         annotation_db.insert_annotations(annotation_generator)
 
-    annotation_db.insert_gene_info(parse_gene_info(options.gene_info))
 
