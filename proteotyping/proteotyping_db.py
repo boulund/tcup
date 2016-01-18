@@ -209,35 +209,18 @@ class NCBITaxa_mod(NCBITaxa):
         self.db.executemany("INSERT INTO refseqs VALUES (?, ?)", refseqs)
         self.db.commit()
     
-    def insert_gene_info(self, gene_infos):
-        """
-        Insert gene info from NCBI Gene into DB.
-
-        :param gene_infos:  List of tuples with gene info (tax_id, GeneID,
-                Symbol, description).
-        :return:  None.
-        """
-        self.db.executemany("INSERT INTO gene VALUES (?, ?, ?, ?)", gene_infos)
-        self.db.commit()
-
     @lru_cache(maxsize=2)
     def find_refseq_header(self, sequence_identifier):
         """
         Find a reference sequence header from the DB using a substring.
         """
-        header = self.db.execute("SELECT header FROM refseqs WHERE header LIKE ?", ("%"+sequence_identifier+"%",)).fetchone()[0]
+        try:
+            header = self.db.execute("SELECT header FROM refseqs WHERE header LIKE ?", ("%"+sequence_identifier+"%",)).fetchone()[0]
+        except TypeError:
+            logging.warning("Found no header for %s in database", sequence_identifier)
+            raise KeyError("Found no header for %s in database" % sequence_identifier)
+            # TODO: Raise custom exception?
         return header
-
-    def insert_annotations(self, annotations):
-        """
-        Insert sequence annotations from GFF files.
-
-        :param annotations:  list of tuples with annotation information
-                (sequence, start, end, annotation).
-        :return:  None.
-        """
-        self.db.executemany("INSERT INTO annotations VALUES (?, ?, ?, ?)", annotations)
-        self.db.commit()
 
     def extend_taxonomy_db(self, species_info_tuples):
         """
@@ -289,8 +272,8 @@ def prepare_db(dbfile, refseqs, taxonomy_ver, refseq_ver, comment):
     
     n = NCBITaxa_mod(dbfile)
     n.expand_taxonomy_db(taxonomy_ver, refseq_ver, comment)
-    n.insert_refseqs_into_db(parse_refseqs(refseqs))
-    #n.dump_db("taxonomy.db.gz")
+    for refseqs_file in refseqs:
+        n.insert_refseqs_into_db(parse_refseqs(refseqs_file))
 
 
 def parse_commandline(argv):
@@ -331,10 +314,10 @@ def parse_commandline(argv):
             default=False,
             help="Log to file instead of STDOUT.")
 
-    parser_proteodb.add_argument("header_mappings", 
-            help="Path to or filename of two column text file with header->taxid mappings")
+    parser_proteodb.add_argument("header_mappings", nargs="+",
+            help="Path(s) to or filename(s) of two column tab-delimited text file with header->taxid mappings")
     parser_proteodb.add_argument("--dbfile", type=str, dest="dbfile",
-            default="proteodb.sql", 
+            default="taxref.sqlite3", 
             help="Filename to write the proteotyping database to [%(default)s].")
     parser_proteodb.add_argument("--db-taxonomy-ver", dest="taxonomy_ver", type=str,
             default="",
