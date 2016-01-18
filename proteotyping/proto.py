@@ -385,7 +385,7 @@ class Sample_DB_wrapper():
         Retrieve all annotated regions matched by any peptide.
         """
 
-        cmd = """SELECT target, spname, features FROM annotationdb.annotations 
+        cmd = """SELECT target, spname, product, features FROM annotationdb.annotations 
           JOIN mappings ON mappings.target = annotationdb.annotations.header
             AND (mappings.start BETWEEN annotationdb.annotations.start 
               AND annotationdb.annotations.end
@@ -448,9 +448,9 @@ def print_annotation_hits(hits):
     Print hits to annotated genome regions.
     """
     print("Hits to annotated genome regions".center(60, "-"))
-    print("{:<40} {:<30} {:<}".format("Genome sequence", "Spname", "Features"))
-    for seq, spname, features in hits:
-        print("{:<40} {:<30} {:<}".format(seq, spname, features))
+    print("{:<40}\t{:<30}\t{:<30}\t{:<}".format("Genome sequence", "Spname", "Product", "Features"))
+    for seq, spname, product, features in hits:
+        print("{:<40}\t{:<30}\t{:<30}\t{:<}".format(seq, spname, product, features))
 
 
 def get_results_from_existing_db(sample_databases,
