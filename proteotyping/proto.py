@@ -261,6 +261,7 @@ class Sample_DB_wrapper():
         self.db.execute("CREATE TABLE mappings(peptide TEXT, target TEXT, start INT, end INT, identity REAL, matches INT)")
         self.db.execute("CREATE TABLE peptides(peptide TEXT, discriminative_taxid INT)")
         self.db.execute("CREATE TABLE cumulative(taxid INT, count INT DEFAULT 0)")
+        self.db.execute("CREATE TABLE rank_counts(count INT DEFAULT 0, rank TEXT)")
 
 
     def attach_proteotyping_ref_db(self, proteotyping_ref_db_file):
@@ -342,6 +343,29 @@ class Sample_DB_wrapper():
             self.db.execute(update_cmd.format(",".join("?"*len(lca_lineage))), lca_lineage)
 
         self.db.commit()
+
+    def count_discriminative_per_rank(self):
+        """
+        Count the number of discriminative peptides per rank and store in
+        sample DB.
+        """
+
+        logging.debug("Counting discriminative peptides per rank...")
+        cmd = """INSERT INTO rank_counts
+          SELECT count(rank), rank 
+          FROM peptides
+          JOIN proteodb.species ON peptides.discriminative_taxid = proteodb.species.taxid
+          GROUP BY rank
+          ORDER BY count(rank) DESC
+          """
+        self.db.execute(cmd)
+        self.db.commit()
+
+    def get_rank_counts(self):
+        """
+        Returns a dictionary with rank:counts mappings.
+        """
+        return {r: c for c, r in self.db.execute("SELECT * FROM rank_counts").fetchall()}
 
     def get_discriminative_at_rank(self, rank):
         """
@@ -427,15 +451,18 @@ def print_discriminative_peptides(discriminative):
         print("{:<20} {:<15} {:<30}".format(*d))
 
 
-def print_peptides_per_spname(discriminative):
+def print_peptides_per_spname(discriminative, rank_counts):
     """
     Print number of discriminative peptides per spname.
     """
     species_counts = Counter((species, rank) for pep, rank, species in discriminative)
     print("Discriminative peptides per spname".center(60, "-"))
-    print("{:<6} {:<20} {:<40}".format("Count", "Rank", "Description"))
+    print("{:<6} {:>6} {:<20} {:<40}".format("Count", "%", "Rank", "Description"))
     for species, count in species_counts.most_common():
-        print("{:<6} {:<20} {:<40}".format(count, species[1], species[0]))
+        rank = species[1]
+        desc= species[0]
+        percentage = count/rank_counts[rank] * 100
+        print("{:<6} {:>6.2f} {:<20} {:<40}".format(count, percentage, rank, desc))
 
 
 def print_annotation_hits(hits):
@@ -462,11 +489,12 @@ def get_results_from_existing_db(sample_databases,
         sample_db.attach_annotation_db(annotation_db_file)
 
         disc = sample_db.get_discriminative_at_rank(taxonomic_rank)
+        rank_counts = sample_db.get_rank_counts()
 
         print(sample_db.dbfile.center(60, "-"))
         if print_all_discriminative_peptides:
             print_discriminative_peptides(disc)
-        print_peptides_per_spname(disc)
+        print_peptides_per_spname(disc, rank_counts)
 
         if print_cumulative_counts:
             disc_peps_per_rank = sample_db.get_discriminative_counts_at_rank(taxonomic_rank)
@@ -503,6 +531,7 @@ def main(options):
 
         sample_db.attach_proteotyping_ref_db(options.proteodb)
         sample_db.determine_discriminative_ranks()
+        sample_db.count_discriminative_per_rank()
 
         get_results_from_existing_db([sample_db],
                 options.annotation_db_file,
