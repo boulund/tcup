@@ -388,11 +388,16 @@ class Sample_DB_wrapper():
 
         rank_set = self.rank_hierarchy[self.ranks[rank]:]
 
-        cmd = """SELECT count, rank, spname FROM cumulative 
-          JOIN proteodb.species ON cumulative.taxid = proteodb.species.taxid 
-          WHERE proteodb.species.rank IN ({})
-          AND cumulative.count > 0 
-          ORDER BY count DESC""".format(",".join("?"*len(rank_set)))
+        cmd = """SELECT cumulative.count, count(peptide), rank, spname FROM peptides
+        JOIN proteodb.species, cumulative 
+        ON proteodb.species.taxid = peptides.discriminative_taxid
+        AND cumulative.taxid = proteodb.species.taxid
+        WHERE proteodb.species.rank in ({})
+        AND cumulative.count > 0
+        GROUP BY rank, spname
+        ORDER BY cumulative.count DESC
+        """.format(",".join("?"*len(rank_set)))
+
         result = self.db.execute(cmd, rank_set).fetchall()
         return result
     
@@ -428,17 +433,18 @@ class Sample_DB_wrapper():
         return result
 
 
-def print_cumulative_discriminative_counts(disc_peps_per_rank, ranks):
+def print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts):
     """
     Print sorted lists of discriminative peptide counts across all ranks.
     """
 
-    print("Cumulative counts per spname".center(60, "-"))
-    print("{:<6} {:<20} {:<40}".format("Count", "Rank", "Description"))
-    for count, rank, spname in disc_peps_per_rank:
+    print("Discriminative peptides per spname".center(60, "-"))
+    print("{:<10} {:<6} {:>6} {:<20} {:<40}".format("Cumulative", "Count", "%", "Rank", "Description"))
+    for cum_count, count, rank, spname in disc_peps_per_rank:
         if spname in ("root", "cellular organisms"):
             continue
-        print("{:<6} {:<20} {:<40}".format(count, rank, spname))
+        percentage = count/rank_counts[rank] * 100
+        print("{:<10} {:<6} {:>6.2f} {:<20} {:<40}".format(cum_count, count, percentage, rank, spname))
 
 
 def print_discriminative_peptides(discriminative):
@@ -449,20 +455,6 @@ def print_discriminative_peptides(discriminative):
     print("{:<20} {:<15} {:<30}".format("Peptide", "Rank", "Description"))
     for d in discriminative: 
         print("{:<20} {:<15} {:<30}".format(*d))
-
-
-def print_peptides_per_spname(discriminative, rank_counts):
-    """
-    Print number of discriminative peptides per spname.
-    """
-    species_counts = Counter((species, rank) for pep, rank, species in discriminative)
-    print("Discriminative peptides per spname".center(60, "-"))
-    print("{:<6} {:>6} {:<20} {:<40}".format("Count", "%", "Rank", "Description"))
-    for species, count in species_counts.most_common():
-        rank = species[1]
-        desc= species[0]
-        percentage = count/rank_counts[rank] * 100
-        print("{:<6} {:>6.2f} {:<20} {:<40}".format(count, percentage, rank, desc))
 
 
 def print_annotation_hits(hits):
@@ -494,11 +486,10 @@ def get_results_from_existing_db(sample_databases,
         print(sample_db.dbfile.center(60, "-"))
         if print_all_discriminative_peptides:
             print_discriminative_peptides(disc)
-        print_peptides_per_spname(disc, rank_counts)
 
         if print_cumulative_counts:
             disc_peps_per_rank = sample_db.get_discriminative_counts_at_rank(taxonomic_rank)
-            print_cumulative_discriminative_counts(disc_peps_per_rank, sample_db.ranks)
+            print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts)
 
         if print_annotations:
             hits = sample_db.get_hits_to_annotated_regions()
