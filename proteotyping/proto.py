@@ -448,9 +448,9 @@ def print_annotation_hits(hits):
     Print hits to annotated genome regions.
     """
     print("Hits to annotated genome regions".center(60, "-"))
-    print("{:<40}\t{:<30}\t{:<30}\t{:<}".format("Genome sequence", "Spname", "Product", "Features"))
+    print("{:<34}\t{:<40}\t{:<30}\t{:<}".format("Genome sequence", "Spname", "Product", "Features"))
     for seq, spname, product, features in hits:
-        print("{:<40}\t{:<30}\t{:<30}\t{:<}".format(seq, spname, product, features))
+        print("{:<34}\t{:<40}\t{:<30}\t{:<}".format(seq, spname, product, features))
 
 
 def get_results_from_existing_db(sample_databases,
