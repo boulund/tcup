@@ -48,6 +48,9 @@ def parse_commandline(argv):
             action="store_true",
             default=False,
             help="Print all discriminative peptides [%(default)s].")
+    parser.add_argument("--print-annotations", dest="print_annotations", action="store_true",
+            default=False,
+            help="Print all annotated regions hit by discriminative fragments [%(default)s].")
     parser.add_argument("--min-matches", dest="min_matches", metavar="L", type=int,
             default=6,
             help="Minimum peptide matches (i.e. peptide length) [%(default)s].")
@@ -201,20 +204,18 @@ class Sample_DB_wrapper():
     database and an annotation database.
     """
 
-    def __init__(self, sample_db_filename):
-        self.dbfile = sample_db_filename
-        if os.path.isfile(self.dbfile):
+    def __init__(self, sample_db_filename, create_new=True):
+        if os.path.isfile(sample_db_filename) and not create_new:
+            self._connect_to_existing_sample_db(sample_db_filename)
+        elif os.path.isfile(sample_db_filename) and create_new:
             sleep_time = 3
-            logging.warning("About to delete pre-existing sample DB: %s", self.dbfile)
+            logging.warning("About to delete pre-existing sample DB: %s", sample_db_filename)
             logging.warning("Press Ctrl+c to cancel within %i sec...", sleep_time)
             time.sleep(sleep_time)
-            os.remove(self.dbfile)
-            
-        self.db = sqlite3.connect(self.dbfile)
-        logging.info("Creating new sample DB %s", self.dbfile)
-        self.db.execute("CREATE TABLE mappings(peptide TEXT, target TEXT, start INT, end INT, identity REAL, matches INT)")
-        self.db.execute("CREATE TABLE peptides(peptide TEXT, discriminative_taxid INT)")
-        self.db.execute("CREATE TABLE cumulative(taxid INT, count INT DEFAULT 0)")
+            os.remove(sample_db_filename)
+            self._create_new_sample_db(sample_db_filename)
+        else:
+            self._create_new_sample_db(sample_db_filename)
 
         # Define NCBI Taxonomy rank hierachy
         self.rank_hierarchy = ["superkingdom",
@@ -247,6 +248,20 @@ class Sample_DB_wrapper():
                 "forma",
                 "no rank"]
         self.ranks = {r: n for n, r in enumerate(self.rank_hierarchy)}
+
+    def _connect_to_existing_sample_db(self, sample_db_filename):
+        self.dbfile = sample_db_filename
+        self.db = sqlite3.connect(self.dbfile)
+        logging.debug("Connected to pre-existing sample DB %s", self.dbfile)
+    
+    def _create_new_sample_db(self, sample_db_filename):
+        self.dbfile = sample_db_filename
+        self.db = sqlite3.connect(self.dbfile)
+        logging.info("Creating new sample DB %s", self.dbfile)
+        self.db.execute("CREATE TABLE mappings(peptide TEXT, target TEXT, start INT, end INT, identity REAL, matches INT)")
+        self.db.execute("CREATE TABLE peptides(peptide TEXT, discriminative_taxid INT)")
+        self.db.execute("CREATE TABLE cumulative(taxid INT, count INT DEFAULT 0)")
+
 
     def attach_proteotyping_ref_db(self, proteotyping_ref_db_file):
         self.db.execute("ATTACH ? as proteodb", (proteotyping_ref_db_file, ))
@@ -365,12 +380,26 @@ class Sample_DB_wrapper():
         """
         pass
     
-    def get_hits_to_annotated_regions(self, rank):
+    def get_hits_to_annotated_regions(self):
         """
         Retrieve all annotated regions matched by any peptide.
         """
-        pass
 
+        cmd = """SELECT target, spname, features FROM annotationdb.annotations 
+          JOIN mappings ON mappings.target = annotationdb.annotations.header
+            AND (mappings.start BETWEEN annotationdb.annotations.start 
+              AND annotationdb.annotations.end
+            OR mappings.end BETWEEN annotationdb.annotations.start 
+              AND annotationdb.annotations.end
+            OR (mappings.start <= annotationdb.annotations.start 
+              AND mappings.end >= annotationdb.annotations.end
+              )
+            )
+          JOIN proteodb.refseqs ON mappings.target = proteodb.refseqs.header
+          JOIN proteodb.species ON proteodb.refseqs.taxid = proteodb.species.taxid
+        """
+        result = self.db.execute(cmd).fetchall()
+        return result
 
 
 def print_cumulative_discriminative_counts(disc_peps_per_rank, ranks):
@@ -414,10 +443,21 @@ def print_peptides_per_spname(discriminative):
         print("{:<6} {:<20} {:<40}".format(count, species[1], species[0]))
 
 
+def print_annotation_hits(hits):
+    """
+    Print hits to annotated genome regions.
+    """
+    print("Hits to annotated genome regions".center(60, "-"))
+    print("{:<40} {:<30} {:<}".format("Genome sequence", "Spname", "Features"))
+    for seq, spname, features in hits:
+        print("{:<40} {:<30} {:<}".format(seq, spname, features))
+
+
 def get_results_from_existing_db(sample_databases,
         annotation_db_file, 
         taxonomic_rank="family",
         print_all_discriminative_peptides=False,
+        print_annotations=True,
         print_cumulative_counts=True):
     """
     Retrieve results from existing sample database(s).
@@ -438,8 +478,9 @@ def get_results_from_existing_db(sample_databases,
         if print_cumulative_counts:
             print_cumulative_discriminative_counts(disc_peps_per_rank, sample_db.ranks)
 
-        hits = [("gi|152977688|ref|NC_009655.1|", 2500, 2700)]
-        sample_db.get_hits_to_annotated_regions(hits)
+        hits = sample_db.get_hits_to_annotated_regions()
+        if print_annotations:
+            print_annotation_hits(hits)
 
         
 
@@ -451,6 +492,11 @@ def main(options):
     blacklisted_seqs = prepare_blacklist(options.blacklist, options.leave_out)
 
     for blat_file in options.FILE:
+        if blat_file.endswith(".sqlite3"):
+            sleep_time = 5
+            logging.warning("{} ends with .sqlite3, did you mean to use --sample-db?".format(blat_file))
+            logging.warning("Press Ctrl+c to cancel within %i sec...", sleep_time)
+            time.sleep(sleep_time)
         sample_db_filename = blat_file + ".sqlite3"
         sample_db = Sample_DB_wrapper(sample_db_filename)
         blat_parser = parse_blat_output(blat_file, 
@@ -467,7 +513,8 @@ def main(options):
         get_results_from_existing_db([sample_db],
                 options.annotation_db_file,
                 options.taxonomic_rank,
-                options.print_all_discriminative_peptides)
+                options.print_all_discriminative_peptides,
+                options.print_annotations)
 
 
 if __name__ == "__main__":
@@ -475,10 +522,13 @@ if __name__ == "__main__":
     options = parse_commandline(argv)
 
     if options.sample_db:
-        sample_databases = [Sample_DB_wrapper(filename) for filename in options.FILE]
-        get_results_from_existing_db(options.FILE,
+        sample_databases = [Sample_DB_wrapper(filename, create_new=False) for filename in options.FILE]
+        for sample_db in sample_databases:
+            sample_db.attach_proteotyping_ref_db(options.proteodb)
+        get_results_from_existing_db(sample_databases,
                 options.annotation_db_file,
                 options.taxonomic_rank,
-                options.print_all_discriminative_peptides)
+                options.print_all_discriminative_peptides,
+                options.print_annotations)
     else:
         main(options)
