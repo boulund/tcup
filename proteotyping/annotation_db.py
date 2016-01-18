@@ -134,7 +134,7 @@ def parse_gff(filename):
             try:
                 sequence, source, feature, start, end, score, strand, phase, attributes_string = line.split("\t")
                 if feature == "gene" or feature == "protein":
-                    yield (sequence, start, end, attributes_string)
+                    yield (sequence, start, end, attributes_string.strip())
             except ValueError:
                 if line.startswith("#"):
                     logging.debug("Passing comment line: %s", line)
