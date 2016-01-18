@@ -127,17 +127,25 @@ def parse_gff(filename):
         logging.info("Parsing %s...", filename)
         line = f.readline()
         if not line.startswith("##gff-version 3"):
-            raise Exception("Parse error: wrong gff version or not gff file.")
+            logging.error("Parse Error: %s", filename)
+            logging.error("Offending line: %s", line)
+            raise Exception("Parse error: wrong gff version or not gff file: %s" % filename)
         while line.startswith("#"):
             line = f.readline()
         while line:
             try:
-                sequence, source, feature, start, end, score, strand, phase, attributes_string = line.split("\t")
-                if feature == "gene" or feature == "protein":
-                    yield (sequence, start, end, attributes_string.strip())
+                sequence, source, feature, start, end, score, strand, phase, attributes_string = line.strip().split("\t")
+                if feature == "CDS":
+                    try:
+                        product = attributes_string.split("product=")[1].split(";", 1)[0]
+                    except IndexError:
+                        logging.warning("Found no product info in attributes string: %s", attributes_string)
+                        logging.warning("Entire line GFF line: %s", line)
+                        product = "??"
+                    yield (sequence, start, end, product, attributes_string)
             except ValueError:
                 if line.startswith("#"):
-                    logging.debug("Passing comment line: %s", line)
+                    # logging.debug("Skipping comment line: %s", line) # Too verbose!
                     pass
                 else:
                     logging.error("Couldn't parse gff, the offending line was:\n%s", line)
@@ -168,7 +176,7 @@ class Annotation_DB_wrapper():
         self.dbfile = dbfile
         self.db = sqlite3.connect(dbfile)
 
-        self.db.execute("CREATE TABLE annotations (header TEXT, start INT, end INT, features TEXT)")
+        self.db.execute("CREATE TABLE annotations (header TEXT, start INT, end INT, product TEXT, features TEXT)")
 
     def insert_annotations(self, annotation_data):
         """
@@ -178,7 +186,7 @@ class Annotation_DB_wrapper():
                 (header, start, end, features)
         """
 
-        self.db.executemany("INSERT INTO annotations VALUES (?,?,?,?)", annotation_data)
+        self.db.executemany("INSERT INTO annotations VALUES (?,?,?,?,?)", annotation_data)
         records = self.db.execute("SELECT Count(*) FROM annotations").fetchone()[0]
         logging.info("Inserted %s annotation records.", records)
         # TODO: Create index on start and end columns
