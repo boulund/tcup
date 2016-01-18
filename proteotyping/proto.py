@@ -17,10 +17,8 @@ import re
 
 try:
     from utils import find_files, grouper, existing_file
-    from annotation_db import Annotation_DB_wrapper
 except ImportError:
     from proteotyping.utils import find_files, grouper, existing_file
-    from proteotyping.annotation_db import Annotation_DB_wrapper
 
 
 def parse_commandline(argv):
@@ -35,7 +33,7 @@ def parse_commandline(argv):
     parser.add_argument("--proteodb", dest="proteodb", metavar="DB", type=str,
             default="proteodb.sql",
             help="Path to proteotyping sqlite3 DB [%(default)s].")
-    parser.add_argument("--annotation-db", dest="annotation_db", metavar="FILE",
+    parser.add_argument("--annotation-db", dest="annotation_db_file", metavar="FILE",
             default="annotationdb.sql",
             help="Path to annoation sqlite3 DB [%(default)s].")
     parser.add_argument("--sample-db", dest="sample_db", action="store_true",
@@ -190,41 +188,33 @@ def parse_blat_output(filename, min_identity, min_matches,
         logging.info("%s hits for %s peptides remain after relative filtering.", num_remain_hits, num_remain_pep)
 
 
-class Proteotyping_DB_wrapper():
+class Sample_DB_wrapper():
     """ 
-    Wrapper for sqlite3 database.
+    Wrapper for an Sqlite3 database for storing proteotyping results.
 
-    Stores a hard coded rank hierarchy based on the ranks seen 
-    in NCBI Taxonomy. Note the problematic "no rank" assignment
-    that can be encountered at different levels in the taxonomy, 
-    here incorrectly positioned to always be at the lowest rank.
+    This class also stores a hard coded rank hierarchy based on the ranks seen
+    in NCBI Taxonomy. Note the problematic "no rank" assignment that can be
+    encountered at different levels in the taxonomy, here incorrectly
+    positioned to always be at the lowest rank.
+
+    The class has methods that allow attaching a proteotyping reference
+    database and an annotation database.
     """
 
-    def __init__(self, sample_db, ref_dbfile=None):
-        # Setup SQLite DB references
-        self.dbfile = sample_db
-        if ref_dbfile and os.path.isfile(self.dbfile):
-            sleep_time = 5
+    def __init__(self, sample_db_filename):
+        self.dbfile = sample_db_filename
+        if os.path.isfile(self.dbfile):
+            sleep_time = 3
             logging.warning("About to delete pre-existing sample DB: %s", self.dbfile)
             logging.warning("Press Ctrl+c to cancel within %i sec...", sleep_time)
             time.sleep(sleep_time)
             os.remove(self.dbfile)
-            logging.debug("Copying reference DB (%s) to create new sample DB (%s)", ref_dbfile, self.dbfile)
-            shutil.copy(ref_dbfile, self.dbfile)
-        elif ref_dbfile and not os.path.isfile(ref_dbfile):
-            logging.error("Cannot connect to non-existent DB file: %s", ref_dbfile)
-            exit(1)
-        elif ref_dbfile:
-            logging.debug("Copying ref_dbfile %s to sample db location: %s", ref_dbfile, sample_db)
-            shutil.copy(ref_dbfile, self.dbfile)
-
+            
         self.db = sqlite3.connect(self.dbfile)
-        logging.info("Connected to sample DB %s", self.dbfile)
-        try:
-            logging.info("DB version: %s", self.db.execute("SELECT * FROM version").fetchall()[0])
-        except sqlite3.OperationalError as msg:
-            logging.error("Incorrect or missing DB %s: %s", self.dbfile, msg)
-            exit(1)
+        logging.info("Creating new sample DB %s", self.dbfile)
+        self.db.execute("CREATE TABLE mappings(peptide TEXT, target TEXT, start INT, end INT, identity REAL, matches INT)")
+        self.db.execute("CREATE TABLE peptides(peptide TEXT, discriminative_taxid INT)")
+        self.db.execute("CREATE TABLE cumulative(taxid INT, count INT DEFAULT 0)")
 
         # Define NCBI Taxonomy rank hierachy
         self.rank_hierarchy = ["superkingdom",
@@ -258,6 +248,16 @@ class Proteotyping_DB_wrapper():
                 "no rank"]
         self.ranks = {r: n for n, r in enumerate(self.rank_hierarchy)}
 
+    def attach_proteotyping_ref_db(self, proteotyping_ref_db_file):
+        self.db.execute("ATTACH ? as proteodb", (proteotyping_ref_db_file, ))
+        logging.debug("Attached proteotyping taxref DB")
+        self.db.execute("INSERT INTO cumulative (taxid) SELECT taxid from proteodb.species")
+        self.db.commit()
+    
+    def attach_annotation_db(self, annotation_db_file):
+        self.db.execute("ATTACH ? as annotationdb", (annotation_db_file, ))
+        logging.debug("Attached annotation DB")
+
     @staticmethod
     def lowest_common_ancestor(lineages, common_lineage=False):
         """
@@ -269,10 +269,6 @@ class Proteotyping_DB_wrapper():
                 lineage or only lowest common ancestor.
         :return: lowest common ancestor (list).
         """
-       # if not (type(lineages[0]) is list or type(lineages[0]) is tuple):
-       #     raise TypeError("lineages must be nested iterator"
-       #                     "(e.g. list of lists or tuple of tuples)")
-        
         occurrences = OrderedDict()
         for lineage in lineages:
             for taxid in lineage:
@@ -295,7 +291,8 @@ class Proteotyping_DB_wrapper():
         Insert peptide hits from BLAT into db.
         """
         for values in grouper(hits_per_chunk, blat_output):
-            self.db.executemany("INSERT INTO peptides VALUES (?, ?, ?, ?, ?, ?)", values)
+            self.db.executemany("INSERT INTO mappings VALUES (?, ?, ?, ?, ?, ?)", values)
+        self.db.execute("INSERT INTO peptides (peptide) SELECT DISTINCT peptide FROM mappings")
         self.db.commit()
 
     
@@ -305,9 +302,9 @@ class Proteotyping_DB_wrapper():
         """
 
         for peptide in self.db.execute("SELECT DISTINCT peptide FROM peptides"):
-            cmd = """ SELECT track FROM species
-              JOIN refseqs ON refseqs.taxid = species.taxid
-              JOIN peptides ON peptides.target = refseqs.header AND peptides.peptide = ?
+            cmd = """ SELECT track FROM proteodb.species
+              JOIN proteodb.refseqs ON refseqs.taxid = species.taxid
+              JOIN mappings ON mappings.target = proteodb.refseqs.header AND mappings.peptide = ?
             """
             query = self.db.execute(cmd, peptide)
             tracks = [list(map(int, t[0].split(","))) for t in query.fetchall()]
@@ -316,15 +313,17 @@ class Proteotyping_DB_wrapper():
                 if lca[0] != 131567:  # taxid=131567 is "cellular organisms"
                     # TODO: verbose
                     #logging.debug("Peptide %s is discriminative at rank '%s' for %s", peptide[0], rank, spname)
-                    self.db.execute("INSERT INTO discriminative VALUES (?, ?)", (peptide[0], lca[0]))
+                    #self.db.execute("INSERT INTO discriminative VALUES (?, ?)", (peptide[0], lca[0]))
+                    self.db.execute("UPDATE peptides SET discriminative_taxid = ? WHERE peptide = ?", (lca[0], peptide[0]))
             except IndexError:
                 logging.warning("Found no LCA for %s with tracks %s", peptide, [list(track) for track in tracks])
 
-            # Find the track lineage of the LCA to increment discriminative_count on all
+            # Find the track lineage of the LCA to increment the count of
+            # number of discriminative fragments beneath that node on all
             # lineage members.
-            lca_lineage_query = self.db.execute("SELECT track FROM species WHERE taxid = (?)", lca).fetchone()
+            lca_lineage_query = self.db.execute("SELECT track FROM proteodb.species WHERE taxid = (?)", lca).fetchone()
             lca_lineage = list(map(int, lca_lineage_query[0].split(",")))
-            update_cmd = "UPDATE species SET discriminative_count = discriminative_count + 1 WHERE taxid IN ({})"
+            update_cmd = "UPDATE cumulative SET count = count + 1 WHERE taxid IN ({})"
             self.db.execute(update_cmd.format(",".join("?"*len(lca_lineage))), lca_lineage)
 
         self.db.commit()
@@ -338,8 +337,8 @@ class Proteotyping_DB_wrapper():
 
         rank_set = self.rank_hierarchy[self.ranks[rank]:]
 
-        cmd = """SELECT peptide, rank, spname FROM discriminative
-          JOIN species ON species.taxid = discriminative.taxid
+        cmd = """SELECT peptide, rank, spname FROM peptides
+          JOIN proteodb.species ON proteodb.species.taxid = peptides.discriminative_taxid
           WHERE rank IN ({})
           ORDER BY rank""".format(",".join("?"*len(rank_set)))
         result = self.db.execute(cmd, rank_set).fetchall()
@@ -350,8 +349,9 @@ class Proteotyping_DB_wrapper():
         Retrieve cumulative peptide counts across all ranks.
         """
 
-        cmd = """SELECT discriminative_count, rank, spname FROM species 
-            WHERE discriminative_count > 0"""
+        cmd = """SELECT count, rank, spname FROM cumulative 
+            JOIN proteodb.species ON cumulative.taxid = proteodb.species.taxid 
+            WHERE cumulative.count > 0"""
         result = self.db.execute(cmd).fetchall()
         return result
     
@@ -363,8 +363,14 @@ class Proteotyping_DB_wrapper():
         :return:  List of hits to reference sequences, 
                 sorted by reference sequence headers.
         """
-        
         pass
+    
+    def get_hits_to_annotated_regions(self, rank):
+        """
+        Retrieve all annotated regions matched by any peptide.
+        """
+        pass
+
 
 
 def print_cumulative_discriminative_counts(disc_peps_per_rank, ranks):
@@ -372,6 +378,8 @@ def print_cumulative_discriminative_counts(disc_peps_per_rank, ranks):
     Print sorted lists of discriminative peptide counts across all ranks.
     """
 
+    print("Cumulative counts per spname".center(60, "-"))
+    print("{:<6} {:<20} {:<40}".format("Count", "Rank", "Description"))
     sorted_disc_peps_per_rank = sorted(disc_peps_per_rank, key=lambda entry: ranks[entry[1]])
     # Removed this printout because it is too messy and non-informative.
     #for rank, group in groupby(sorted_disc_peps_per_rank, key=lambda entry: ranks[entry[1]]):
@@ -383,7 +391,6 @@ def print_cumulative_discriminative_counts(disc_peps_per_rank, ranks):
         if spname in ("root", "cellular organisms"):
             continue
         print("{:<6} {:<20} {:<40}".format(count, rank, spname))
-
 
 
 def print_discriminative_peptides(discriminative):
@@ -408,35 +415,31 @@ def print_peptides_per_spname(discriminative):
 
 
 def get_results_from_existing_db(sample_databases,
-        annotation_db, 
+        annotation_db_file, 
         taxonomic_rank="family",
         print_all_discriminative_peptides=False,
         print_cumulative_counts=True):
     """
-    Retrieve results from an existing sample db.
+    Retrieve results from existing sample database(s).
     """
 
-    annotation_db = Annotation_DB_wrapper(annotation_db)
-
     for sample_db in sample_databases:
-        if type(sample_db) == Proteotyping_DB_wrapper:
-            refdb = sample_db
-        else: 
-            refdb = Proteotyping_DB_wrapper(sample_db)
-        disc = refdb.get_discriminative_at_rank(taxonomic_rank)
+        sample_db.attach_annotation_db(annotation_db_file)
 
-        print(refdb.dbfile.center(60, "-"))
+        disc = sample_db.get_discriminative_at_rank(taxonomic_rank)
+
+        print(sample_db.dbfile.center(60, "-"))
         if print_all_discriminative_peptides:
             print_discriminative_peptides(disc)
         print_peptides_per_spname(disc)
 
-        print(refdb.dbfile.center(60, "-"))
-        disc_peps_per_rank = refdb.get_discriminative_counts()
+        print(sample_db.dbfile.center(60, "-"))
+        disc_peps_per_rank = sample_db.get_discriminative_counts()
         if print_cumulative_counts:
-            print_cumulative_discriminative_counts(disc_peps_per_rank, refdb.ranks)
+            print_cumulative_discriminative_counts(disc_peps_per_rank, sample_db.ranks)
 
         hits = [("gi|152977688|ref|NC_009655.1|", 2500, 2700)]
-        annotation_db.get_hits_to_annotated_regions(hits)
+        sample_db.get_hits_to_annotated_regions(hits)
 
         
 
@@ -448,18 +451,21 @@ def main(options):
     blacklisted_seqs = prepare_blacklist(options.blacklist, options.leave_out)
 
     for blat_file in options.FILE:
-        refdb = Proteotyping_DB_wrapper(blat_file+".sqlite3", options.proteodb) 
+        sample_db_filename = blat_file + ".sqlite3"
+        sample_db = Sample_DB_wrapper(sample_db_filename)
         blat_parser = parse_blat_output(blat_file, 
                 options.min_identity, 
                 options.min_matches, 
                 options.min_coverage,
                 options.max_pid_diff, 
                 blacklisted_seqs)
-        refdb.insert_blat_hits_into_db(blat_parser)
-        refdb.determine_discriminative_ranks()
+        sample_db.insert_blat_hits_into_db(blat_parser)
 
-        get_results_from_existing_db([refdb],
-                options.annotation_db,
+        sample_db.attach_proteotyping_ref_db(options.proteodb)
+        sample_db.determine_discriminative_ranks()
+
+        get_results_from_existing_db([sample_db],
+                options.annotation_db_file,
                 options.taxonomic_rank,
                 options.print_all_discriminative_peptides)
 
@@ -469,8 +475,9 @@ if __name__ == "__main__":
     options = parse_commandline(argv)
 
     if options.sample_db:
+        sample_databases = [Sample_DB_wrapper(filename) for filename in options.FILE]
         get_results_from_existing_db(options.FILE,
-                options.annotation_db,
+                options.annotation_db_file,
                 options.taxonomic_rank,
                 options.print_all_discriminative_peptides)
     else:

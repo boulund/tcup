@@ -218,25 +218,6 @@ class Annotation_DB_wrapper():
         logging.info("Table gene_info now contains %s records.", records)
         self.db.commit()
 
-    def get_hits_to_annotated_regions(self, hits):
-        """
-        Return a list of annotated regions hit by peptides.
-        
-        :param hits:  Iterator with hits to reference sequences,
-                (header, start, stop).
-        :return:  Nested list of annotated regions hit by peptides.
-        """
-
-        for header, hit_start, hit_stop in hits:
-            cmd = """
-            WITH target_annotations AS 
-            (SELECT * FROM annotations WHERE header = ?)
-              SELECT attributes FROM target_annotations WHERE 
-                start < ? AND end > ? OR
-                start > ? AND end < ?
-            """
-            res = self.db.execute(cmd, (header, hit_start, hit_start, hit_stop, hit_stop))
-
 
 
 
@@ -245,13 +226,9 @@ if __name__ == "__main__":
     options = parse_args(sys.argv)
 
     proteodb = Proteotyping_DB_wrapper(options.proteodb)
-    annotation_db = Annotation_DB_wrapper(options.db_filename, 
-            options.db_comment, 
-            create_db=True)
+    annotation_db = Annotation_DB_wrapper(options.db_filename, options.db_comment, create_db=True)
     for annotations_dir in options.annotation_dirs:
-        annotation_generator = parse_annotations(proteodb, 
-                annotations_dir, 
-                options.glob_pattern_gff)
+        annotation_generator = parse_annotations(proteodb, annotations_dir, options.glob_pattern_gff)
         annotation_db.insert_annotations(annotation_generator)
 
     annotation_db.insert_gene_info(parse_gene_info(options.gene_info))

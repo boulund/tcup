@@ -87,7 +87,7 @@ class Taxdump_DB_wrapper():
         else:
             logging.debug("Found no previous DB file, creating new: %s", self.sqlite3db_file)
             if not gi_taxid_dmp: 
-                raise Exception("Argument gi_taxid_dmp required to create new DB.")
+                raise Exception("Parameter 'gi_taxid_dmp' required to create new DB.")
             self.con = self.create_gi_taxid_db(self.sqlite3db_file, gi_taxid_dmp, rows_per_chunk)
     
     def create_gi_taxid_db(self, sqlite3db_file, gi_taxid_dmp, rows_per_chunk):
@@ -180,9 +180,8 @@ class NCBITaxa_mod(NCBITaxa):
         Prepare taxonomy DB for use with proteotyping.
 
         Expands the ETE3-based taxonomy database with additional tables for
-        storing discriminative peptide information and genome annotations.
-        Will remove tables "version", "peptides", "discriminative", "refseqs",
-        and "annotations" from database if they exist.
+        storing what nodes are associated with reference genome sequence in the
+        taxonomy. 
 
         :param refseq_ver:  String specifying what version of RefSeq was
                 when creating the db.
@@ -194,14 +193,9 @@ class NCBITaxa_mod(NCBITaxa):
         
         creation_date = time.strftime("%Y-%m-%d")
         self.db.execute("DROP TABLE IF EXISTS version")
-        self.db.execute("DROP TABLE IF EXISTS peptides")
-        self.db.execute("DROP TABLE IF EXISTS discriminative")
         self.db.execute("DROP TABLE IF EXISTS refseqs")
-        self.db.execute("CREATE TABLE peptides(peptide TEXT, target TEXT, start INT, end INT, identity INT, matches INT)")
-        self.db.execute("CREATE TABLE discriminative(peptide TEXT PRIMARY KEY REFERENCES peptides(peptide), taxid INT REFERENCES species(taxid))")
         self.db.execute("CREATE TABLE refseqs(header TEXT PRIMARY KEY, taxid INT)")
         self.db.execute("CREATE TABLE version(created TEXT, refseq TEXT, taxonomy TEXT, comment TEXT)")
-        self.db.execute("ALTER TABLE species ADD COLUMN discriminative_count INT DEFAULT 0")
         self.db.execute("INSERT INTO version VALUES (?, ?, ?, ?)", (creation_date, refseq_ver, taxonomy_ver, comment))
         self.db.commit()
 
@@ -277,7 +271,7 @@ class NCBITaxa_mod(NCBITaxa):
 
 def parse_refseqs(filename):
     """
-    Parse refseq:taxid mappings from file.
+    Parse refseq:taxid mappings from tab or space delimited text file.
     """
 
     with open(filename) as f:
@@ -288,7 +282,9 @@ def parse_refseqs(filename):
 
 def prepare_db(dbfile, refseqs, taxonomy_ver, refseq_ver, comment):
     """
-    Prepare DB based on ETE3 NCBITaxa.
+    Prepare a proteotyping reference DB based on the taxonomy from ETE3
+    NCBITaxa, expanded with information on the nodes associated with reference
+    genome sequences (e.g. from NCBI RefSeq).
     """
     
     n = NCBITaxa_mod(dbfile)
