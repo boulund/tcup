@@ -64,6 +64,12 @@ def parse_commandline(argv):
     parser.add_argument("--max-pid-diff", dest="max_pid_diff", type=float, metavar="D",
             default=5.0,
             help="Maximum identity difference between highest and lowest hit for each peptide. Floating point between 0.0-100.0 [%(default)s].")
+    parser.add_argument("--write-xlsx", action="store_true",
+            default=False,
+            help="Write results to Excel xslx file [%(default)s].")
+    parser.add_argument("--write-xlsx", action="store_true",
+            default=False,
+            help="Write results to Excel xslx file [%(default)s].")
     parser.add_argument("--output", dest="output",
             default="",
             help="Write results to this filename [results/FILE.results].")
@@ -586,7 +592,8 @@ def main(options):
                 options.annotation_db_file,
                 options.taxonomic_rank,
                 options.print_all_discriminative_peptides,
-                options.print_annotations)
+                options.print_annotations,
+                options.write_xlsx)
 
 
 if __name__ == "__main__":
@@ -601,6 +608,7 @@ if __name__ == "__main__":
                 options.annotation_db_file,
                 options.taxonomic_rank,
                 options.print_all_discriminative_peptides,
-                options.print_annotations)
+                options.print_annotations,
+                options.write_xlsx)
     else:
         main(options)
