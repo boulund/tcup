@@ -67,9 +67,6 @@ def parse_commandline(argv):
     parser.add_argument("--write-xlsx", action="store_true",
             default=False,
             help="Write results to Excel xslx file [%(default)s].")
-    parser.add_argument("--write-xlsx", action="store_true",
-            default=False,
-            help="Write results to Excel xslx file [%(default)s].")
     parser.add_argument("--output", dest="output",
             default="",
             help="Write results to this filename [results/FILE.results].")
