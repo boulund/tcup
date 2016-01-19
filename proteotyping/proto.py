@@ -384,6 +384,7 @@ class Sample_DB_wrapper():
           JOIN proteodb.species ON proteodb.species.taxid = peptides.discriminative_taxid
           WHERE rank IN ({})
           ORDER BY rank""".format(",".join("?"*len(rank_set)))
+        logging.debug("Retrieving discriminativ peptides at and below rank %s...", rank)
         result = self.db.execute(cmd, rank_set).fetchall()
         return result
 
@@ -404,6 +405,7 @@ class Sample_DB_wrapper():
         ORDER BY cumulative.count DESC
         """.format(",".join("?"*len(rank_set)))
 
+        logging.debug("Retrieving cumulative counts at and below rank %s...", rank)
         result = self.db.execute(cmd, rank_set).fetchall()
         return result
     
@@ -435,6 +437,7 @@ class Sample_DB_wrapper():
           JOIN proteodb.refseqs ON mappings.target = proteodb.refseqs.header
           JOIN proteodb.species ON proteodb.refseqs.taxid = proteodb.species.taxid
         """
+        logging.debug("Retrieving all annotated regions matched by any discriminative peptide...")
         result = self.db.execute(cmd).fetchall()
         return result
 
@@ -524,8 +527,7 @@ def get_results_from_existing_db(sample_databases,
         annotation_db_file, 
         taxonomic_rank="family",
         print_all_discriminative_peptides=False,
-        print_annotations=True,
-        print_cumulative_counts=True,
+        print_annotations=False,
         write_xlsx=True):
     """
     Retrieve results from existing sample database(s).
@@ -542,8 +544,7 @@ def get_results_from_existing_db(sample_databases,
         if print_all_discriminative_peptides:
             print_discriminative_peptides(disc)
 
-        if print_cumulative_counts:
-            print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts)
+        print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts)
 
         if print_annotations:
             hits = sample_db.get_hits_to_annotated_regions()
