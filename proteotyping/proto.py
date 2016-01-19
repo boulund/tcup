@@ -535,6 +535,7 @@ def get_results_from_existing_db(sample_databases,
         sample_db.attach_annotation_db(annotation_db_file)
 
         disc = sample_db.get_discriminative_at_rank(taxonomic_rank)
+        disc_peps_per_rank = sample_db.get_discriminative_counts_at_rank(taxonomic_rank)
         rank_counts = sample_db.get_rank_counts()
 
         print(sample_db.dbfile.center(60, "-"))
@@ -542,7 +543,6 @@ def get_results_from_existing_db(sample_databases,
             print_discriminative_peptides(disc)
 
         if print_cumulative_counts:
-            disc_peps_per_rank = sample_db.get_discriminative_counts_at_rank(taxonomic_rank)
             print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts)
 
         if print_annotations:
