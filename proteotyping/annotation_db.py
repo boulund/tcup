@@ -189,7 +189,9 @@ class Annotation_DB_wrapper():
         self.db.executemany("INSERT INTO annotations VALUES (?,?,?,?,?)", annotation_data)
         records = self.db.execute("SELECT Count(*) FROM annotations").fetchone()[0]
         logging.info("Inserted %s annotation records.", records)
-        # TODO: Create index on start and end columns
+        self.db.execute("CREATE INDEX i_starts ON annotations(start)")
+        self.db.execute("CREATE INDEX i_ends ON annotations(end)")
+        self.db.execute("CREATE INDEX i_starts_ends ON annotations(start, end)")
         self.db.commit()
 
 
