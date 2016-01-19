@@ -14,6 +14,7 @@ import os
 import argparse
 import logging
 import re
+import xlsxwriter
 
 try:
     from utils import find_files, grouper, existing_file
@@ -309,6 +310,8 @@ class Sample_DB_wrapper():
         for values in grouper(hits_per_chunk, blat_output):
             self.db.executemany("INSERT INTO mappings VALUES (?, ?, ?, ?, ?, ?)", values)
         self.db.execute("INSERT INTO peptides (peptide) SELECT DISTINCT peptide FROM mappings")
+        self.db.execute("CREATE INDEX i_peptides_disc ON peptides(discriminative_taxid)")
+        self.db.execute("CREATE INDEX i_mappings_targets ON mappings(target)")
         self.db.commit()
 
     
@@ -466,13 +469,61 @@ def print_annotation_hits(hits):
     for seq, spname, product, features in hits:
         print("{:<34}\t{:<40}\t{:<30}\t{:<}".format(seq, spname, product, features))
 
+def write_results_xlsx(disc_peps_per_rank, rank_counts, hits, results_filename):
+    """
+    Write results to an Excel xslx file.
+    """
+
+    workbook = xlsxwriter.Workbook(results_filename)
+    worksheet_composition= workbook.add_worksheet("Taxonomic composition")
+
+    percentage_format = workbook.add_format({"num_format": "0.00%"})
+
+    worksheet_composition.write(0, 0, "Cumulative")
+    worksheet_composition.write(0, 1, "Discriminative count")
+    worksheet_composition.write(0, 2, "Percentage")
+    worksheet_composition.write(0, 3, "Rank")
+    worksheet_composition.write(0, 4, "Description")
+    worksheet_composition.set_column(0, 0, 9.0)
+    worksheet_composition.set_column(1, 1, 17.0)
+    worksheet_composition.set_column(2, 2, 9.0)
+    worksheet_composition.set_column(3, 3, 11.0)
+    worksheet_composition.set_column(4, 4, 40.0)
+    for row, data in enumerate(disc_peps_per_rank, start=1):
+        cum_count, count, rank, spname = data
+        if spname in ("root", "cellular organisms"):
+            continue
+        percentage = count/rank_counts[rank]
+        worksheet_composition.write(row, 0, cum_count)
+        worksheet_composition.write(row, 1, count)
+        worksheet_composition.write(row, 2, percentage, percentage_format)
+        worksheet_composition.write(row, 3, rank)
+        worksheet_composition.write(row, 4, spname)
+
+    worksheet_annotations = workbook.add_worksheet("Hits to annotated regions")
+    worksheet_annotations.write(0, 0, "Genome sequence")
+    worksheet_annotations.write(0, 1, "Species")
+    worksheet_annotations.write(0, 2, "Product")
+    worksheet_annotations.write(0, 3, "Features")
+    worksheet_annotations.set_column(0, 0, 34.0)
+    worksheet_annotations.set_column(1, 1, 40.0)
+    worksheet_annotations.set_column(2, 2, 45.0)
+    for row, data in enumerate(hits, start=1):
+        seq, spname, product, features = data
+        worksheet_annotations.write(row, 0, seq)
+        worksheet_annotations.write(row, 1, spname)
+        worksheet_annotations.write(row, 2, product)
+        worksheet_annotations.write(row, 3, features)
+    
+    workbook.close()
 
 def get_results_from_existing_db(sample_databases,
         annotation_db_file, 
         taxonomic_rank="family",
         print_all_discriminative_peptides=False,
         print_annotations=True,
-        print_cumulative_counts=True):
+        print_cumulative_counts=True,
+        write_xlsx=True):
     """
     Retrieve results from existing sample database(s).
     """
@@ -494,6 +545,13 @@ def get_results_from_existing_db(sample_databases,
         if print_annotations:
             hits = sample_db.get_hits_to_annotated_regions()
             print_annotation_hits(hits)
+
+        if write_xlsx:
+            hits = sample_db.get_hits_to_annotated_regions()
+            xlsx_filename = sample_db.dbfile.split(".", 1)[0] + ".xlsx"
+            write_results_xlsx(disc_peps_per_rank, rank_counts, hits, xlsx_filename)
+
+
 
         
 
