@@ -464,18 +464,23 @@ class Sample_DB_wrapper():
         Retrieve all annotated regions matched by any peptide.
         """
 
-        cmd = """SELECT target, spname, product, features FROM annotationdb.annotations 
-          JOIN mappings ON mappings.target = annotationdb.annotations.header
-            AND (mappings.start BETWEEN annotationdb.annotations.start 
-              AND annotationdb.annotations.end
-            OR mappings.end BETWEEN annotationdb.annotations.start 
-              AND annotationdb.annotations.end
+        cmd = """
+        SELECT spname, count(product) as prod_count, product, features 
+        FROM annotationdb.annotations 
+        JOIN mappings 
+        ON mappings.target = annotationdb.annotations.header
+          AND (mappings.start 
+            BETWEEN annotationdb.annotations.start AND annotationdb.annotations.end
+            OR mappings.end 
+            BETWEEN annotationdb.annotations.start AND annotationdb.annotations.end
             OR (mappings.start <= annotationdb.annotations.start 
               AND mappings.end >= annotationdb.annotations.end
-              )
             )
-          JOIN proteodb.refseqs ON mappings.target = proteodb.refseqs.header
-          JOIN proteodb.species ON proteodb.refseqs.taxid = proteodb.species.taxid
+          )
+        JOIN proteodb.refseqs ON mappings.target = proteodb.refseqs.header
+        JOIN proteodb.species ON proteodb.refseqs.taxid = proteodb.species.taxid
+        GROUP BY spname, product
+        ORDER BY prod_count DESC
         """
         logging.debug("Retrieving all annotated regions matched by any discriminative peptide...")
         result = self.db.execute(cmd).fetchall()
@@ -513,9 +518,9 @@ def print_annotation_hits(hits):
     Print hits to annotated genome regions.
     """
     print("Hits to annotated genome regions".center(60, "-"))
-    print("{:<34}\t{:<40}\t{:<30}\t{:<}".format("Genome sequence", "Spname", "Product", "Features"))
-    for seq, spname, product, features in hits:
-        print("{:<34}\t{:<40}\t{:<30}\t{:<}".format(seq, spname, product, features))
+    print("{:<40}\t{:<7}\t{:<45}\t{:<}".format("Spname", "Count", "Product", "Features"))
+    for spname, count, product, features in hits:
+        print("{:<40}\t{:<7}\t{:<45}\t{:<}".format(spname, count, product, features))
 
 
 def write_results_xlsx(disc_peps_per_rank, rank_counts, hits, results_filename):
@@ -540,8 +545,6 @@ def write_results_xlsx(disc_peps_per_rank, rank_counts, hits, results_filename):
     worksheet_composition.set_column(4, 4, 40.0)
     for row, data in enumerate(disc_peps_per_rank, start=1):
         cum_count, count, rank, spname = data
-        if spname in ("root", "cellular organisms"):
-            continue
         percentage = cum_count/rank_counts[rank]
         worksheet_composition.write(row, 0, cum_count)
         worksheet_composition.write(row, 1, count)
@@ -551,17 +554,17 @@ def write_results_xlsx(disc_peps_per_rank, rank_counts, hits, results_filename):
     worksheet_composition.autofilter(0, 0, row, 4)
 
     worksheet_annotations = workbook.add_worksheet("Hits to annotated regions")
-    worksheet_annotations.write(0, 0, "Genome sequence")
-    worksheet_annotations.write(0, 1, "Species")
+    worksheet_annotations.write(0, 0, "Species")
+    worksheet_annotations.write(0, 1, "Count")
     worksheet_annotations.write(0, 2, "Product")
     worksheet_annotations.write(0, 3, "Features")
-    worksheet_annotations.set_column(0, 0, 34.0)
-    worksheet_annotations.set_column(1, 1, 40.0)
+    worksheet_annotations.set_column(0, 0, 40.0)
+    worksheet_annotations.set_column(1, 1, 9.0)
     worksheet_annotations.set_column(2, 2, 45.0)
     for row, data in enumerate(hits, start=1):
-        seq, spname, product, features = data
-        worksheet_annotations.write(row, 0, seq)
-        worksheet_annotations.write(row, 1, spname)
+        spname, product_count, product, features = data
+        worksheet_annotations.write(row, 0, spname)
+        worksheet_annotations.write(row, 1, product_count)
         worksheet_annotations.write(row, 2, product)
         worksheet_annotations.write(row, 3, features)
     
