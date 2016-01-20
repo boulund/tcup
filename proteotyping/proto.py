@@ -330,15 +330,28 @@ class Sample_DB_wrapper():
             """
             query = self.db.execute(cmd, peptide)
             tracks = [list(map(int, t[0].split(","))) for t in query.fetchall()]
+            if not tracks:
+                # Find track based on another taxid, perhaps has the target
+                # taxid has been merged into another.
+                logging.debug("Found no track for %s in proteodb.species, trying to see if taxid has been merged", peptide)
+                taxid_old_cmd = """SELECT track FROM proteodb.species
+                  JOIN proteodb.refseqs ON refseqs.taxid = proteodb.merged.taxid_old
+                  JOIN proteodb.merged ON merged.taxid_new = species.taxid
+                  JOIN mappings ON mappings.target = proteodb.refseqs.header
+                  AND mappings.peptide = ?
+                """
+                query = self.db.execute(taxid_old_cmd, peptide)
+                tracks = [list(map(int, t[0].split(","))) for t in query.fetchall()]
+                if tracks:
+                    logging.debug("Found track for %s, taxid was merged", peptide)
             lca = self.lowest_common_ancestor(tracks)
             try:
                 if lca[0] != 131567:  # taxid=131567 is "cellular organisms"
                     # TODO: verbose
                     #logging.debug("Peptide %s is discriminative at rank '%s' for %s", peptide[0], rank, spname)
-                    #self.db.execute("INSERT INTO discriminative VALUES (?, ?)", (peptide[0], lca[0]))
                     self.db.execute("UPDATE peptides SET discriminative_taxid = ? WHERE peptide = ?", (lca[0], peptide[0]))
             except IndexError:
-                logging.warning("Found no LCA for %s with tracks %s", peptide, [list(track) for track in tracks])
+                logging.warning("Found no LCA for %s", peptide)
 
             # Find the track lineage of the LCA to increment the count of
             # number of discriminative fragments beneath that node on all
@@ -384,7 +397,7 @@ class Sample_DB_wrapper():
           JOIN proteodb.species ON proteodb.species.taxid = peptides.discriminative_taxid
           WHERE rank IN ({})
           ORDER BY rank""".format(",".join("?"*len(rank_set)))
-        logging.debug("Retrieving discriminativ peptides at and below rank %s...", rank)
+        logging.debug("Retrieving discriminative peptides at and below rank %s...", rank)
         result = self.db.execute(cmd, rank_set).fetchall()
         return result
 
