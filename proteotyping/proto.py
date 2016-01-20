@@ -385,11 +385,25 @@ class Sample_DB_wrapper():
         Returns a dictionary with rank:counts mappings.
         """
         return {r: c for c, r in self.db.execute("SELECT * FROM rank_counts").fetchall()}
+    
+    def get_cumulative_rank_counts(self):
+        """
+        Returns a dictionary with cumulative rank:counts mappings.
+        """
+        logging.debug("Getting cumulative rank:counts mappings.")
+        cmd = """SELECT rank, sum(count) FROM cumulative
+          JOIN proteodb.species
+          ON proteodb.species.taxid = cumulative.taxid
+          GROUP BY rank
+        """
+        result = self.db.execute(cmd).fetchall()
+        return {r: c for r, c in result}
 
-    def get_discriminative_at_rank(self, rank):
+    def get_discriminative_peptides_from_rank(self, rank):
         """
         Retrieve all discriminative peptides at and below the specified rank.
         """
+        logging.debug("Retrieving discriminative peptides at and below rank %s...", rank)
 
         rank_set = self.rank_hierarchy[self.ranks[rank]:]
 
@@ -397,28 +411,27 @@ class Sample_DB_wrapper():
           JOIN proteodb.species ON proteodb.species.taxid = peptides.discriminative_taxid
           WHERE rank IN ({})
           ORDER BY rank""".format(",".join("?"*len(rank_set)))
-        logging.debug("Retrieving discriminative peptides at and below rank %s...", rank)
         result = self.db.execute(cmd, rank_set).fetchall()
         return result
 
-    def get_discriminative_counts_at_rank(self, rank):
+    def get_discriminative_counts_from_rank(self, rank):
         """
-        Retrieve cumulative peptide counts across all ranks.
+        Retrieve cumulative peptide counts for all ranks at or below 'rank'.
         """
+        logging.debug("Getting cumulative counts at and below rank: '%s'...", rank)
 
         rank_set = self.rank_hierarchy[self.ranks[rank]:]
 
         cmd = """SELECT cumulative.count, count(peptide), rank, spname FROM peptides
         JOIN proteodb.species, cumulative 
-        ON proteodb.species.taxid = peptides.discriminative_taxid
-        AND cumulative.taxid = proteodb.species.taxid
+        ON cumulative.taxid = proteodb.species.taxid
+        AND proteodb.species.taxid = peptides.discriminative_taxid
         WHERE proteodb.species.rank in ({})
         AND cumulative.count > 0
         GROUP BY rank, spname
         ORDER BY cumulative.count DESC
         """.format(",".join("?"*len(rank_set)))
 
-        logging.debug("Retrieving cumulative counts at and below rank %s...", rank)
         result = self.db.execute(cmd, rank_set).fetchall()
         return result
     
@@ -549,24 +562,25 @@ def get_results_from_existing_db(sample_databases,
     for sample_db in sample_databases:
         sample_db.attach_annotation_db(annotation_db_file)
 
-        disc = sample_db.get_discriminative_at_rank(taxonomic_rank)
-        disc_peps_per_rank = sample_db.get_discriminative_counts_at_rank(taxonomic_rank)
-        rank_counts = sample_db.get_rank_counts()
+        disc_peps_per_rank = sample_db.get_discriminative_counts_from_rank(taxonomic_rank)
+        rank_counts = sample_db.get_cumulative_rank_counts()
 
         print(sample_db.dbfile.center(60, "-"))
-        if print_all_discriminative_peptides:
-            print_discriminative_peptides(disc)
-
         print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts)
 
-        if print_annotations:
+        if write_xlsx or print_annotations:
             hits = sample_db.get_hits_to_annotated_regions()
-            print_annotation_hits(hits)
-
         if write_xlsx:
-            hits = sample_db.get_hits_to_annotated_regions()
             xlsx_filename = sample_db.dbfile.split(".", 1)[0] + ".xlsx"
             write_results_xlsx(disc_peps_per_rank, rank_counts, hits, xlsx_filename)
+        if print_annotations:
+            print_annotation_hits(hits)
+
+        if print_all_discriminative_peptides:
+            disc = sample_db.get_discriminative_peptides_from_rank(taxonomic_rank)
+            print_discriminative_peptides(disc)
+
+
 
 
 
