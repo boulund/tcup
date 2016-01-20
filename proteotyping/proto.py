@@ -428,18 +428,20 @@ class Sample_DB_wrapper():
         rank_set = self.rank_hierarchy[self.ranks[rank]:]
 
         cmd = """
-        SELECT cumulative.count, disc_pep_count, rank, species.spname
-        FROM peptides
-        JOIN species, cumulative, 
-          (SELECT count(peptide) AS disc_pep_count, proteodb.species.spname 
+        SELECT cumulative.count, COALESCE(disc_pep_count, 0), rank, species.spname
+        FROM cumulative
+        JOIN species
+        ON cumulative.taxid = proteodb.species.taxid
+        LEFT JOIN
+          (SELECT COUNT(peptide) AS disc_pep_count, proteodb.species.spname 
            FROM peptides 
            JOIN proteodb.species 
            ON proteodb.species.taxid = peptides.discriminative_taxid
            GROUP BY rank, proteodb.species.spname
           ) AS disc_per_spname
-        ON cumulative.taxid = proteodb.species.taxid
-          AND disc_per_spname.spname = proteodb.species.spname
+        ON disc_per_spname.spname = proteodb.species.spname
         WHERE proteodb.species.rank in ({})
+        AND cumulative.count > 0
         GROUP BY rank, proteodb.species.spname
         ORDER BY cumulative.count DESC
         """.format(",".join("?"*len(rank_set)))
@@ -482,8 +484,10 @@ class Sample_DB_wrapper():
 
 def print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts):
     """
-    Print sorted lists of discriminative peptide counts across all ranks.
+    Print sorted lists of discriminative peptide counts.
     """
+
+    disc_peps_per_rank.sort(key=lambda c: c[0]/rank_counts[c[2]], reverse=True)
 
     print("Discriminative peptides per spname".center(60, "-"))
     print("{:<10} {:<6} {:>6} {:<20} {:<40}".format("Cumulative", "Count", "%", "Rank", "Description"))
@@ -544,6 +548,7 @@ def write_results_xlsx(disc_peps_per_rank, rank_counts, hits, results_filename):
         worksheet_composition.write(row, 2, percentage, percentage_format)
         worksheet_composition.write(row, 3, rank)
         worksheet_composition.write(row, 4, spname)
+    worksheet_composition.autofilter(0, 0, row, 4)
 
     worksheet_annotations = workbook.add_worksheet("Hits to annotated regions")
     worksheet_annotations.write(0, 0, "Genome sequence")
