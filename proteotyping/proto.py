@@ -263,15 +263,15 @@ class Sample_DB_wrapper():
         self.db = sqlite3.connect(self.dbfile)
         logging.info("Creating new sample DB %s", self.dbfile)
         self.db.execute("CREATE TABLE mappings(peptide TEXT, target TEXT, start INT, end INT, identity REAL, matches INT)")
-        self.db.execute("CREATE TABLE peptides(peptide TEXT, discriminative_taxid INT)")
-        self.db.execute("CREATE TABLE cumulative(taxid INT, count INT DEFAULT 0)")
-        self.db.execute("CREATE TABLE rank_counts(count INT DEFAULT 0, rank TEXT)")
+        self.db.execute("CREATE TABLE peptides(peptide TEXT PRIMARY KEY, discriminative_taxid INT)")
+        self.db.execute("CREATE TABLE cumulative(taxid INT PRIMARY KEY, count INT DEFAULT 0)")
+        self.db.execute("CREATE TABLE rank_counts(rank TEXT PRIMARY KEY, count INT DEFAULT 0)")
 
 
     def attach_proteotyping_ref_db(self, proteotyping_ref_db_file):
         self.db.execute("ATTACH ? as proteodb", (proteotyping_ref_db_file, ))
         logging.debug("Attached proteotyping taxref DB")
-        self.db.execute("INSERT INTO cumulative (taxid) SELECT taxid from proteodb.species")
+        self.db.execute("INSERT OR IGNORE INTO cumulative (taxid) SELECT taxid from proteodb.species")
         self.db.commit()
     
     def attach_annotation_db(self, annotation_db_file):
@@ -358,9 +358,14 @@ class Sample_DB_wrapper():
             # lineage members.
             lca_lineage_query = self.db.execute("SELECT track FROM proteodb.species WHERE taxid = (?)", lca).fetchone()
             lca_lineage = list(map(int, lca_lineage_query[0].split(",")))
+
+            # TODO: Change this into an UPSERT-like thing to remove the need for
+            # including ALL taxids when attaching the proteodb the first time,
+            # and remove the need to delete all count = 0 below.
             update_cmd = "UPDATE cumulative SET count = count + 1 WHERE taxid IN ({})"
             self.db.execute(update_cmd.format(",".join("?"*len(lca_lineage))), lca_lineage)
 
+        self.db.execute("DELETE FROM cumulative WHERE count = 0")
         self.db.commit()
 
     def count_discriminative_per_rank(self):
@@ -371,7 +376,7 @@ class Sample_DB_wrapper():
 
         logging.debug("Counting discriminative peptides per rank...")
         cmd = """INSERT INTO rank_counts
-          SELECT count(rank), rank 
+          SELECT rank, count(rank)
           FROM peptides
           JOIN proteodb.species ON peptides.discriminative_taxid = proteodb.species.taxid
           GROUP BY rank
@@ -382,15 +387,15 @@ class Sample_DB_wrapper():
 
     def get_rank_counts(self):
         """
-        Returns a dictionary with rank:counts mappings.
+        Returns a dictionary with rank:count mappings.
         """
         return {r: c for c, r in self.db.execute("SELECT * FROM rank_counts").fetchall()}
     
     def get_cumulative_rank_counts(self):
         """
-        Returns a dictionary with cumulative rank:counts mappings.
+        Returns a dictionary with cumulative rank:count mappings.
         """
-        logging.debug("Getting cumulative rank:counts mappings.")
+        logging.debug("Getting cumulative rank:count mappings.")
         cmd = """SELECT rank, sum(count) FROM cumulative
           JOIN proteodb.species
           ON proteodb.species.taxid = cumulative.taxid
@@ -422,13 +427,20 @@ class Sample_DB_wrapper():
 
         rank_set = self.rank_hierarchy[self.ranks[rank]:]
 
-        cmd = """SELECT cumulative.count, count(peptide), rank, spname FROM peptides
-        JOIN proteodb.species, cumulative 
+        cmd = """
+        SELECT cumulative.count, disc_pep_count, rank, species.spname
+        FROM peptides
+        JOIN species, cumulative, 
+          (SELECT count(peptide) AS disc_pep_count, proteodb.species.spname 
+           FROM peptides 
+           JOIN proteodb.species 
+           ON proteodb.species.taxid = peptides.discriminative_taxid
+           GROUP BY rank, proteodb.species.spname
+          ) AS disc_per_spname
         ON cumulative.taxid = proteodb.species.taxid
-        AND proteodb.species.taxid = peptides.discriminative_taxid
+          AND disc_per_spname.spname = proteodb.species.spname
         WHERE proteodb.species.rank in ({})
-        AND cumulative.count > 0
-        GROUP BY rank, spname
+        GROUP BY rank, proteodb.species.spname
         ORDER BY cumulative.count DESC
         """.format(",".join("?"*len(rank_set)))
 
@@ -478,7 +490,7 @@ def print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts):
     for cum_count, count, rank, spname in disc_peps_per_rank:
         if spname in ("root", "cellular organisms"):
             continue
-        percentage = count/rank_counts[rank] * 100
+        percentage = cum_count/rank_counts[rank] * 100
         print("{:<10} {:<6} {:>6.2f} {:<20} {:<40}".format(cum_count, count, percentage, rank, spname))
 
 
@@ -500,6 +512,7 @@ def print_annotation_hits(hits):
     print("{:<34}\t{:<40}\t{:<30}\t{:<}".format("Genome sequence", "Spname", "Product", "Features"))
     for seq, spname, product, features in hits:
         print("{:<34}\t{:<40}\t{:<30}\t{:<}".format(seq, spname, product, features))
+
 
 def write_results_xlsx(disc_peps_per_rank, rank_counts, hits, results_filename):
     """
@@ -525,7 +538,7 @@ def write_results_xlsx(disc_peps_per_rank, rank_counts, hits, results_filename):
         cum_count, count, rank, spname = data
         if spname in ("root", "cellular organisms"):
             continue
-        percentage = count/rank_counts[rank]
+        percentage = cum_count/rank_counts[rank]
         worksheet_composition.write(row, 0, cum_count)
         worksheet_composition.write(row, 1, count)
         worksheet_composition.write(row, 2, percentage, percentage_format)
