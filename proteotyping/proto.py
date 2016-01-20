@@ -558,9 +558,9 @@ def write_results_xlsx(disc_peps_per_rank, rank_counts, hits, results_filename):
     worksheet_annotations.write(0, 1, "Count")
     worksheet_annotations.write(0, 2, "Product")
     worksheet_annotations.write(0, 3, "Features")
-    worksheet_annotations.set_column(0, 0, 40.0)
-    worksheet_annotations.set_column(1, 1, 9.0)
-    worksheet_annotations.set_column(2, 2, 45.0)
+    worksheet_annotations.set_column(0, 0, 53.0)
+    worksheet_annotations.set_column(1, 1, 8.0)
+    worksheet_annotations.set_column(2, 2, 53.0)
     for row, data in enumerate(hits, start=1):
         spname, product_count, product, features = data
         worksheet_annotations.write(row, 0, spname)
