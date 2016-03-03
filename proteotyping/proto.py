@@ -186,10 +186,10 @@ def parse_blat_output(filename, min_identity, min_matches,
         num_remain_hits = 0
         for peptide, hitlist in hitlists.items():
             max_pid = max(map(float, (h[1] for h in hitlist)))
-            filtered = [h for h in hitlist if float(h[1]) >= max_pid - max_pid_diff]
+            filtered = [h for h in hitlist if float(h[1]) >= (max_pid - max_pid_diff)]
             if len(filtered)>0:
                 num_remain_pep += 1
-                for hit in hitlist:
+                for hit in filtered:
                     yield peptide, hit[0], int(hit[3]), int(hit[4]), float(hit[1]), int(hit[2])
                     num_remain_hits += 1
         logging.info("%s hits for %s peptides remain after relative filtering.", num_remain_hits, num_remain_pep)
@@ -570,6 +570,7 @@ def write_results_xlsx(disc_peps_per_rank, rank_counts, hits, results_filename):
     
     workbook.close()
 
+
 def get_results_from_existing_db(sample_databases,
         annotation_db_file, 
         taxonomic_rank="family",
@@ -600,12 +601,6 @@ def get_results_from_existing_db(sample_databases,
         if print_all_discriminative_peptides:
             disc = sample_db.get_discriminative_peptides_from_rank(taxonomic_rank)
             print_discriminative_peptides(disc)
-
-
-
-
-
-        
 
 
 def main(options):
