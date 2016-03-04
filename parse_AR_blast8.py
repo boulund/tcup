@@ -20,7 +20,7 @@ def parse_commandline():
 
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument("FILE", type=str, nargs="+",
-            help="pBLAT blast8 file to parse.")
+            help="pBLAT blast8 file(s) to parse.")
     parser.add_argument("-r", "--resfinder", dest="resfinder",
             required=True,
             help="ResFinder sqlite3 database.")
