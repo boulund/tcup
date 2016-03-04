@@ -20,8 +20,10 @@ def parse_commandline():
 
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument("-s", "--sequences", dest="sequences",
+            required=True,
             help="File with sequences in FASTA format.")
     parser.add_argument("-n", "--notes", dest="notes",
+            required=True,
             help="File called 'notes.txt' from ResFinder.")
     parser.add_argument("-d", "--db", dest="dbfile",
             default="resfinder.sqlite3",
@@ -83,18 +85,14 @@ def guess_family(h):
     """ 
     Guess the AR family of a sequence header in ResFinder. 
 
-    TODO: Remove ugly generalizations that erroneously groups
-    things together that shouldn't (e.g. all aminoglycoside genes
-    will be under 'aac').
-
     The last if statement and final return statement can take care
-    of almost all cases, except aac's, and blaTEM members with 
+    of most cases, except aac's, and blaTEM members with 
     capital characters on the end, e.g. blaTEM-1A. 
     Adding capital characters to the rstrip would remove an 'A' too
-    much from e.g. blaFONA. Annoying...
+    much from families such as blaFONA and several others. Annoying...
     """
-    if h.startswith("aac"):
-        return "aac"
+    #if h.startswith("aac"):  # Bad: This groups all aac genes into 'aac'.
+    #    return "aac"
     if h.startswith("blaTEM-"):
         return "blaTEM"
     if h.count("-") > 1:
@@ -113,7 +111,7 @@ def merge_fasta_headers_and_notes(headers, notes, use_closest_match=False):
     for header in headers:
         symbol = header.split("_", 1)[0]
         family = guess_family(symbol)
-        # logging.debug("Guessed family %s for header %s", family, header)  # TODO: Verbose
+        logging.debug("Guessed family %s for header %s", family, header)  # TODO: Verbose
         try:
             yield (header, symbol, family, notes[symbol][0], notes[symbol][1])
             continue
