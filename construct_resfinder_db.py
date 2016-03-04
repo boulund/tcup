@@ -86,13 +86,14 @@ def guess_family(h):
     Guess the AR family of a sequence header in ResFinder. 
 
     The last if statement and final return statement can take care
-    of most cases, except aac's, and blaTEM members with 
-    capital characters on the end, e.g. blaTEM-1A. 
-    Adding capital characters to the rstrip would remove an 'A' too
-    much from families such as blaFONA and several others. Annoying...
+    of most cases (such as blaXXX, QnrXXX, dfrXX), except e.g. 
+    blaTEM members with capital characters on the end (e.g. blaTEM-1A).
+    Adding capital characters to the rstrip at the bottom would remove 
+    an 'A' too much from families such as blaFONA and several others. 
+    Annoying...
     """
-    #if h.startswith("aac"):  # Bad: This groups all aac genes into 'aac'.
-    #    return "aac"
+    if h.startswith("sul"):
+        return h[0:4]  # e.g. sul1, sul2, sul3
     if h.startswith("blaTEM-"):
         return "blaTEM"
     if h.count("-") > 1:
