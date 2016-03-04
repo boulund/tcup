@@ -23,7 +23,7 @@ def parse_commandline():
             help="File with sequences in FASTA format.")
     parser.add_argument("-n", "--notes", dest="notes",
             help="File called 'notes.txt' from ResFinder.")
-    parser.add_argument("-d" "--db", dest="dbfile",
+    parser.add_argument("-d", "--db", dest="dbfile",
             default="resfinder.sqlite3",
             help="Database filename for sqlite3 database [%(default)s].")
     parser.add_argument("--use-closest-match", dest="use_closest_match",
@@ -79,25 +79,41 @@ def parse_resfinder_notes(filename):
     return mappings
 
 
+def guess_family(h):
+    """ 
+    Guess the AR family of a sequence header in ResFinder. 
+
+    TODO: Remove ugly generalizations that erroneously groups
+    things together that shouldn't (e.g. all aminoglycoside genes
+    will be under 'aac').
+
+    The last if statement and final return statement can take care
+    of almost all cases, except aac's, and blaTEM members with 
+    capital characters on the end, e.g. blaTEM-1A. 
+    Adding capital characters to the rstrip would remove an 'A' too
+    much from e.g. blaFONA. Annoying...
+    """
+    if h.startswith("aac"):
+        return "aac"
+    if h.startswith("blaTEM-"):
+        return "blaTEM"
+    if h.count("-") > 1:
+        h = h.rsplit("-", 1)[0]
+    return h.rstrip("0123456789-")
+
+
 def merge_fasta_headers_and_notes(headers, notes, use_closest_match=False):
     """
     Merge FASTA headers and information from ResFinder notes.txt.
 
     Yields a stream of (header, symbol, family, class, extra) tuples.
     """
-
-    def guess_family(s):
-        """ Guess the AR family of a sequence header in ResFinder. """
-        if s.count("-") > 1:
-            s = s.rsplit("-", 1)[0]
-        return s.rstrip("0123456789-")
-
     missing_mappings = []
 
     for header in headers:
         symbol = header.split("_", 1)[0]
         family = guess_family(symbol)
-        #logging.debug("Guessed family %s for header %s", family, header)
+        # logging.debug("Guessed family %s for header %s", family, header)  # TODO: Verbose
         try:
             yield (header, symbol, family, notes[symbol][0], notes[symbol][1])
             continue
@@ -126,7 +142,7 @@ def create_resfinder_sqlite3_db(dbfile, mappings):
     Create and fill an sqlite3 DB with ResFinder mappings.
 
     Expects mappings to be a list of tuples:
-      (header, symbol, class, extra)
+      (header, symbol, family, class, extra)
     """
 
     logging.info("Creating sqlite3 db: %s ...", dbfile)

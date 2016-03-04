@@ -16,7 +16,7 @@ def parse_commandline():
     Parse commandline.
     """
 
-    desc = """Parse AR hits from pBLAT blast8. Fredrik Boulund 2016"""
+    desc = """Parse AR hits from pBLAT blast8 using ResFinder. Fredrik Boulund 2016"""
 
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument("FILE", type=str, nargs="+",
@@ -29,6 +29,10 @@ def parse_commandline():
             help="Minimum identity for pBLAT matches [%(default)s].")
     parser.add_argument("-o", "--output", dest="output", metavar="OUTFILE",
             help="Write output to OUTFILE.")
+    parser.add_argument("-k", "--keep-going", dest="keep_going",
+            action="store_true",
+            default=False,
+            help="Keep going even if an blast8 input file is empty [%(default)s].")
     parser.add_argument("--loglevel", 
         choices=["INFO", "DEBUG"],
         default="INFO",
@@ -44,7 +48,7 @@ def parse_commandline():
     return options
 
 
-def parse_blat_output(filename, min_identity=100, max_pid_diff=0):
+def parse_blat_output(filename, min_identity=100, keep_going=False, max_pid_diff=0):
     """
     Filter out the best hit(s) for each query sequence.
     
@@ -78,8 +82,11 @@ def parse_blat_output(filename, min_identity=100, max_pid_diff=0):
         try:
             logging.info("Parsed %s hits.", total_count)
         except UnboundLocalError:
-            logging.error("Parsed no hits from %s; file is empty? Exiting...", filename)
-            exit()
+            if not keep_going:
+                logging.error("Parsed no hits from %s; file is empty? Exiting...", filename)
+                exit()
+            else:
+                logging.warning("Parsed no hits from %s: file is empty? Continuing because --keep-going is set.", filename)
         num_remain_pep = 0
         num_remain_hits = 0
         for peptide, hitlist in hitlists.items():
@@ -103,25 +110,33 @@ class ResFinderDB():
         self.db = sqlite3.connect(self.dbfile)
         logging.debug("Connected to sqlite3 db: %s", self.dbfile)
         
-
     def __getitem__(self, key):
-        """ Overload getter: retrieve row from db using ResFinderDB["header"] """
-        header = self.db.execute("SELECT * FROM resfinder WHERE header = ?", (key,)).fetchone()
-        return header
+        """ 
+        Overload getter: retrieve family from db using ResFinderDB["header"] 
+        """
+        get_family_cmd = "SELECT family FROM resfinder WHERE header = ?"
+        family = self.db.execute(get_family_cmd, (key,)).fetchone()[0]
+        return family
+    
 
-
-def best_matching_family_per_peptide(blast8file, min_identity, resfinder_db):
+def best_matching_family_per_peptide(blast8file, min_identity, resfinder_db, keep_going):
     """
     Yield the best matching family per peptide.
     """
 
     resfinder = ResFinderDB(resfinder_db)
 
-    for query, hits in groupby(parse_blat_output(blast8file, min_identity, max_pid_diff=0), key=lambda x: x[0]):
+    for query, hits in groupby(parse_blat_output(blast8file, 
+                                min_identity, 
+                                keep_going, 
+                                max_pid_diff=0), 
+                                key=lambda x: x[0]):
         matching_targets = (target for _, target, _ in hits)
-        matching_families = set(resfinder[target][2] for target in matching_targets)
+        matching_families = set(resfinder[target] for target in matching_targets)
         if len(matching_families) == 1:
-            yield list(matching_families)[0]  # set is not indexable
+            yield matching_families.pop()
+        else:
+            logging.debug("Query %s matches families: %s", query, matching_families)
 
 
 def main(options):
@@ -136,11 +151,20 @@ def main(options):
 
     with outfilehandle as outfile:
         for blast8file in options.FILE:
-            family_counter = Counter(best_matching_family_per_peptide(blast8file, options.min_identity, options.resfinder))
-            print("Results for {}".format(blast8file),  file=outfile)
-            print("{:<10} {}".format("Count", "Family"), file=outfile)
+            family_counter = Counter(best_matching_family_per_peptide(blast8file, 
+                                            options.min_identity, 
+                                            options.resfinder,
+                                            options.keep_going))
+            total_discriminative_peptides = sum(family_counter.values())
+            print("-"*70,  file=outfile)
+            print("Results for {} discriminative peptides in {}".format(
+                total_discriminative_peptides, blast8file), file=outfile)
+            print("{:<7} {:>5}  {}".format("Count", "%", "Family"), file=outfile)
             for family, count in family_counter.most_common():
-                print("{:<10} {}".format(count, family), file=outfile)
+                print("{:<7} {:>5.2f}  {}".format(count, 
+                    count/total_discriminative_peptides*100, 
+                    family), file=outfile)
+           
 
 
 if __name__ == "__main__":
