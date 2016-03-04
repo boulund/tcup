@@ -28,6 +28,10 @@ def parse_commandline():
             type=float,
             default=100.00,
             help="Minimum identity for pBLAT matches [%(default)s].")
+    parser.add_argument("-M", "--max-pid-difference", dest="max_pid_difference",
+            type=float,
+            default=0.0,
+            help="Maximum percent identity difference for discriminative peptides [%(default)s].")
     parser.add_argument("-o", "--output", dest="output", metavar="OUTFILE",
             help="Write output to OUTFILE.")
     parser.add_argument("-k", "--keep-going", dest="keep_going",
@@ -120,7 +124,7 @@ class ResFinderDB():
         return family
     
 
-def best_matching_family_per_peptide(blast8file, min_identity, resfinder_db, keep_going):
+def best_matching_family_per_peptide(blast8file, min_identity, resfinder_db, keep_going, max_pid_difference):
     """
     Yield the best matching family per peptide.
     """
@@ -130,7 +134,7 @@ def best_matching_family_per_peptide(blast8file, min_identity, resfinder_db, kee
     for query, hits in groupby(parse_blat_output(blast8file, 
                                 min_identity, 
                                 keep_going, 
-                                max_pid_diff=0), 
+                                max_pid_difference), 
                                 key=lambda x: x[0]):
         matching_targets = (target for _, target, _ in hits)
         matching_families = set(resfinder[target] for target in matching_targets)
@@ -155,7 +159,8 @@ def main(options):
             family_counter = Counter(best_matching_family_per_peptide(blast8file, 
                                             options.min_identity, 
                                             options.resfinder,
-                                            options.keep_going))
+                                            options.keep_going,
+                                            options.max_pid_difference))
             total_discriminative_peptides = sum(family_counter.values())
             print("-"*70,  file=outfile)
             print("Results for {} discriminative peptides in {}".format(
