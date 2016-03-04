@@ -22,6 +22,7 @@ def parse_commandline():
     parser.add_argument("FILE", type=str, nargs="+",
             help="pBLAT blast8 file to parse.")
     parser.add_argument("-r", "--resfinder", dest="resfinder",
+            required=True,
             help="ResFinder sqlite3 database.")
     parser.add_argument("-m", "--min-identity", dest="min_identity",
             type=float,

@@ -13,7 +13,7 @@ import re
 
 def parse_commandline():
     """
-    Parse commandline.
+    Parse commandline and set logging level.
     """
 
     desc = """Construct ResFinder sqlite3 DB. Fredrik Boulund 2016"""
@@ -32,7 +32,7 @@ def parse_commandline():
             help="Use closest match if unable to map gene symbol parsed from FASTA header to ResFinder's notes.txt [%(default)s].")
     parser.add_argument("--loglevel", 
         choices=["INFO", "DEBUG"],
-        default="DEBUG",
+        default="INFO",
         help="Set logging level [%(default)s].")
 
     if len(argv)<2:
