@@ -4,7 +4,7 @@
 
 from sys import argv, exit, stdout
 from collections import defaultdict, Counter
-from itertools import groupby
+from itertools import groupby, chain
 import argparse
 import logging
 import sqlite3
@@ -32,6 +32,10 @@ def parse_commandline():
             type=float,
             default=0.0,
             help="Maximum percent identity difference for discriminative peptides [%(default)s].")
+    parser.add_argument("-p", "--print-non-discriminative", dest="print_non_discriminative",
+            action="store_true",
+            default=False,
+            help="Print all gene families matched by discriminative peptides [%(default)s].")
     parser.add_argument("-o", "--output", dest="output", metavar="OUTFILE",
             help="Write output to OUTFILE.")
     parser.add_argument("-k", "--keep-going", dest="keep_going",
@@ -71,6 +75,7 @@ def parse_blat_output(filename, min_identity=100, keep_going=False, max_pid_diff
         10  e-value
         11  bit score
     """
+    global TOTAL_PEPTIDES
 
     logging.info("Parsing and filtering hits from '{}'...".format(filename))
 
@@ -86,6 +91,7 @@ def parse_blat_output(filename, min_identity=100, keep_going=False, max_pid_diff
 
         try:
             logging.info("Parsed %s hits.", total_count)
+            TOTAL_PEPTIDES = total_count
         except UnboundLocalError:
             if not keep_going:
                 logging.error("Parsed no hits from %s; file is empty? Exiting...", filename)
@@ -126,7 +132,7 @@ class ResFinderDB():
 
 def best_matching_family_per_peptide(blast8file, min_identity, resfinder_db, keep_going, max_pid_difference):
     """
-    Yield the best matching family per peptide.
+    Yield the best matching families per peptide.
     """
 
     resfinder = ResFinderDB(resfinder_db)
@@ -138,16 +144,14 @@ def best_matching_family_per_peptide(blast8file, min_identity, resfinder_db, kee
                                 key=lambda x: x[0]):
         matching_targets = (target for _, target, _ in hits)
         matching_families = set(resfinder[target] for target in matching_targets)
-        if len(matching_families) == 1:
-            yield matching_families.pop()
-        else:
-            logging.debug("Query %s matches families: %s", query, matching_families)
+        yield matching_families
 
 
 def main(options):
     """
     Main.
     """
+    global TOTAL_PEPTIDES
 
     if options.output:
         outfilehandle = open(options.output, 'w')
@@ -156,23 +160,53 @@ def main(options):
 
     with outfilehandle as outfile:
         for blast8file in options.FILE:
-            family_counter = Counter(best_matching_family_per_peptide(blast8file, 
+            families = list(best_matching_family_per_peptide(blast8file, 
                                             options.min_identity, 
                                             options.resfinder,
                                             options.keep_going,
                                             options.max_pid_difference))
-            total_discriminative_peptides = sum(family_counter.values())
+
+            discriminative_families = [fam.pop() for fam in families if len(fam) == 1]
+            discriminative_family_counter = Counter(discriminative_families)
+
+            non_discriminative_families = list(chain(*(fam for fam in families if len(fam) > 1)))  # Flatten nested list
+            non_discriminative_counter = Counter(non_discriminative_families)
+
+            all_matched_families = set().union(discriminative_family_counter, non_discriminative_counter)
+            total_discriminative_peptides = sum(discriminative_family_counter.values())
+            hitcounts = {}
+            for family in all_matched_families:
+                try:
+                    hitcounts[family] = discriminative_family_counter[family] + non_discriminative_counter[family]
+                except IndexError:
+                    hitcounts[family] = non_discriminative_counter[family]
+            sorted_families = sorted(hitcounts, key=hitcounts.get, reverse=True)
+
             print("-"*70,  file=outfile)
-            print("Results for {} discriminative peptides in {}".format(
-                total_discriminative_peptides, blast8file), file=outfile)
-            print("{:<7} {:>5}  {}".format("Count", "%", "Family"), file=outfile)
-            for family, count in family_counter.most_common():
-                print("{:<7} {:>5.2f}  {}".format(count, 
-                    count/total_discriminative_peptides*100, 
-                    family), file=outfile)
+            print("Results for {} discriminative peptides in {}".format(total_discriminative_peptides, blast8file), file=outfile)
+            print("{:<6} {:<6} {:>6}  {}".format("Disc.", "Hits", "%", "Family"), file=outfile)
+
+            if options.print_non_discriminative:
+                for family in sorted_families:
+                    print("{:<6} {:<6} {:>6.4f}  {}".format(discriminative_family_counter[family],
+                                    hitcounts[family], 
+                                    discriminative_family_counter[family]/TOTAL_PEPTIDES*100,
+                                    family), file=outfile)
+            else:
+                for family, count in discriminative_family_counter.most_common():
+                    print("{:<6} {:<6} {:>6.4f}  {}".format(count,
+                                    hitcounts[family], 
+                                    discriminative_family_counter[family]/TOTAL_PEPTIDES*100,
+                                    family), file=outfile)
            
 
 
 if __name__ == "__main__":
+    # I dislike using a global value like this, but I can't
+    # figure out a better way to pass this value out of the 
+    # blast8-parser generator.
+    global TOTAL_PEPTIDES
+
     options = parse_commandline()
+
     main(options)
