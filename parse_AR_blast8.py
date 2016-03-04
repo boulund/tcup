@@ -126,7 +126,11 @@ class ResFinderDB():
         Overload getter: retrieve family from db using ResFinderDB["header"] 
         """
         get_family_cmd = "SELECT family FROM resfinder WHERE header = ?"
-        family = self.db.execute(get_family_cmd, (key,)).fetchone()[0]
+        try:
+            family = self.db.execute(get_family_cmd, (key,)).fetchone()[0]
+        except TypeError:
+            logging.warning("Could not find header %s in resfinder db", key)
+            family = None
         return family
     
 
