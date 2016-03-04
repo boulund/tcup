@@ -190,13 +190,13 @@ def main(options):
                 for family in sorted_families:
                     print("{:<6} {:<6} {:>6.4f}  {}".format(discriminative_family_counter[family],
                                     hitcounts[family], 
-                                    discriminative_family_counter[family]/TOTAL_PEPTIDES*100,
+                                    hitcounts[family]/TOTAL_PEPTIDES*100,
                                     family), file=outfile)
             else:
                 for family, count in discriminative_family_counter.most_common():
                     print("{:<6} {:<6} {:>6.4f}  {}".format(count,
                                     hitcounts[family], 
-                                    discriminative_family_counter[family]/TOTAL_PEPTIDES*100,
+                                    hitcounts[family]/TOTAL_PEPTIDES*100,
                                     family), file=outfile)
            
 
