@@ -31,15 +31,15 @@ def parse_commandline(argv):
     parser.add_argument("FILE", nargs="+",
             type=existing_file,
             help="BLAT output file.")
-    parser.add_argument("--proteodb", dest="proteodb", metavar="DB", type=str,
-            default="proteodb.sql",
-            help="Path to proteotyping sqlite3 DB [%(default)s].")
+    parser.add_argument("--taxref-db", dest="taxref_db", metavar="DB", type=str,
+            default="taxref.sqlite3",
+            help="Path to taxonomy reference sqlite3 DB [%(default)s].")
     parser.add_argument("--annotation-db", dest="annotation_db_file", metavar="FILE",
-            default="annotationdb.sql",
-            help="Path to annoation sqlite3 DB [%(default)s].")
+            default="annotation_db.sqlite3",
+            help="Path to annotation sqlite3 DB [%(default)s].")
     parser.add_argument("--sample-db", dest="sample_db", action="store_true",
             default=False,
-            help="The supplied 'BLAT output file' is really a processed sample db with proteotyping results [%(default)s]")
+            help="The supplied 'BLAT output file' is really a processed sample db containing proteotyping results [%(default)s]")
     parser.add_argument("--taxonomic-rank", dest="taxonomic_rank", metavar="LVL", type=str,
             choices=["no rank", "subspecies", "species", "genus", "family", "order", "class", "phylum", "superkingdom"],
             default="family",
@@ -268,9 +268,9 @@ class Sample_DB_wrapper():
         self.db.execute("CREATE TABLE rank_counts(rank TEXT PRIMARY KEY, count INT DEFAULT 0)")
 
 
-    def attach_proteotyping_ref_db(self, proteotyping_ref_db_file):
-        self.db.execute("ATTACH ? as proteodb", (proteotyping_ref_db_file, ))
-        logging.debug("Attached proteotyping taxref DB")
+    def attach_taxref_db(self, taxref_db_file):
+        self.db.execute("ATTACH ? as proteodb", (taxref_db_file, ))
+        logging.debug("Attached taxref DB")
         self.db.execute("INSERT OR IGNORE INTO cumulative (taxid) SELECT taxid from proteodb.species")
         self.db.commit()
     
@@ -625,7 +625,7 @@ def main(options):
                 blacklisted_seqs)
         sample_db.insert_blat_hits_into_db(blat_parser)
 
-        sample_db.attach_proteotyping_ref_db(options.proteodb)
+        sample_db.attach_taxref_db(options.proteodb)
         sample_db.determine_discriminative_ranks()
         sample_db.count_discriminative_per_rank()
 
@@ -644,7 +644,7 @@ if __name__ == "__main__":
     if options.sample_db:
         sample_databases = [Sample_DB_wrapper(filename, create_new=False) for filename in options.FILE]
         for sample_db in sample_databases:
-            sample_db.attach_proteotyping_ref_db(options.proteodb)
+            sample_db.attach_taxref_db(options.taxref_db)
         get_results_from_existing_db(sample_databases,
                 options.annotation_db_file,
                 options.taxonomic_rank,
