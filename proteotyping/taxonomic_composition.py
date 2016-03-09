@@ -64,9 +64,9 @@ def parse_commandline(argv):
     parser.add_argument("--max-pid-diff", dest="max_pid_diff", type=float, metavar="D",
             default=5.0,
             help="Maximum identity difference between highest and lowest hit for each peptide. Floating point between 0.0-100.0 [%(default)s].")
-    parser.add_argument("--write-xlsx", action="store_true",
-            default=False,
-            help="Write results to Excel xslx file [%(default)s].")
+    parser.add_argument("--write-xlsx", dest="write_xlsx", metavar="XLSX_FILE",
+            default="",
+            help="Write results to Excel xlsx file [Not used].")
     parser.add_argument("--output", dest="output",
             default="",
             help="Write results to this filename [results/FILE.results].")
@@ -525,7 +525,7 @@ def print_annotation_hits(hits):
 
 def write_results_xlsx(disc_peps_per_rank, rank_counts, hits, results_filename):
     """
-    Write results to an Excel xslx file.
+    Write results to an Excel xlsx file.
     """
 
     workbook = xlsxwriter.Workbook(results_filename)
@@ -576,7 +576,7 @@ def get_results_from_existing_db(sample_databases,
         taxonomic_rank="family",
         print_all_discriminative_peptides=False,
         print_annotations=False,
-        write_xlsx=True):
+        write_xlsx=""):
     """
     Retrieve results from existing sample database(s).
     """
@@ -593,7 +593,7 @@ def get_results_from_existing_db(sample_databases,
         if write_xlsx or print_annotations:
             hits = sample_db.get_hits_to_annotated_regions()
         if write_xlsx:
-            xlsx_filename = sample_db.dbfile.split(".", 1)[0] + ".xlsx"
+            xlsx_filename = write_xlsx
             write_results_xlsx(disc_peps_per_rank, rank_counts, hits, xlsx_filename)
         if print_annotations:
             print_annotation_hits(hits)
