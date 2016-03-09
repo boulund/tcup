@@ -128,7 +128,7 @@ def prepare_blacklist(blacklist, additional=""):
     """
     blacklisted_seqs = set()
     if blacklist:
-        with open(filename) as f:
+        with open(blacklist) as f:
             for line in f:
                 blacklisted_seqs.add(line.strip())
     if additional:
