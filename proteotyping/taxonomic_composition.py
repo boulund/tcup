@@ -625,7 +625,7 @@ def main(options):
                 blacklisted_seqs)
         sample_db.insert_blat_hits_into_db(blat_parser)
 
-        sample_db.attach_taxref_db(options.proteodb)
+        sample_db.attach_taxref_db(options.taxref_db)
         sample_db.determine_discriminative_ranks()
         sample_db.count_discriminative_per_rank()
 
