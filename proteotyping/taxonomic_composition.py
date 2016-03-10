@@ -588,7 +588,6 @@ def get_results_from_existing_db(sample_databases,
 
         disc_peps_per_rank = sample_db.get_discriminative_counts_from_rank(taxonomic_rank)
         rank_counts = sample_db.get_cumulative_rank_counts()
-        print(rank_counts)
 
         print(sample_db.dbfile.center(60, "-"))
         print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts)
