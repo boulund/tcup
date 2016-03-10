@@ -269,9 +269,9 @@ class Sample_DB_wrapper():
 
 
     def attach_taxref_db(self, taxref_db_file):
-        self.db.execute("ATTACH ? as proteodb", (taxref_db_file, ))
+        self.db.execute("ATTACH ? as taxref", (taxref_db_file, ))
         logging.debug("Attached taxref DB")
-        self.db.execute("INSERT OR IGNORE INTO cumulative (taxid) SELECT taxid from proteodb.species")
+        self.db.execute("INSERT OR IGNORE INTO cumulative (taxid) SELECT taxid from taxref.species")
         self.db.commit()
     
     def attach_annotation_db(self, annotation_db_file):
@@ -324,20 +324,20 @@ class Sample_DB_wrapper():
         """
 
         for peptide in self.db.execute("SELECT DISTINCT peptide FROM peptides"):
-            cmd = """ SELECT track FROM proteodb.species
-              JOIN proteodb.refseqs ON refseqs.taxid = species.taxid
-              JOIN mappings ON mappings.target = proteodb.refseqs.header AND mappings.peptide = ?
+            cmd = """ SELECT track FROM taxref.species
+              JOIN taxref.refseqs ON refseqs.taxid = species.taxid
+              JOIN mappings ON mappings.target = taxref.refseqs.header AND mappings.peptide = ?
             """
             query = self.db.execute(cmd, peptide)
             tracks = [list(map(int, t[0].split(","))) for t in query.fetchall()]
             if not tracks:
                 # Find track based on another taxid, perhaps has the target
                 # taxid has been merged into another.
-                logging.debug("Found no track for %s in proteodb.species, trying to see if taxid has been merged", peptide)
-                taxid_old_cmd = """SELECT track FROM proteodb.species
-                  JOIN proteodb.refseqs ON refseqs.taxid = proteodb.merged.taxid_old
-                  JOIN proteodb.merged ON merged.taxid_new = species.taxid
-                  JOIN mappings ON mappings.target = proteodb.refseqs.header
+                logging.debug("Found no track for %s in taxref.species, trying to see if taxid has been merged", peptide)
+                taxid_old_cmd = """SELECT track FROM taxref.species
+                  JOIN taxref.refseqs ON refseqs.taxid = taxref.merged.taxid_old
+                  JOIN taxref.merged ON merged.taxid_new = species.taxid
+                  JOIN mappings ON mappings.target = taxref.refseqs.header
                   AND mappings.peptide = ?
                 """
                 query = self.db.execute(taxid_old_cmd, peptide)
@@ -356,11 +356,11 @@ class Sample_DB_wrapper():
             # Find the track lineage of the LCA to increment the count of
             # number of discriminative fragments beneath that node on all
             # lineage members.
-            lca_lineage_query = self.db.execute("SELECT track FROM proteodb.species WHERE taxid = (?)", lca).fetchone()
+            lca_lineage_query = self.db.execute("SELECT track FROM taxref.species WHERE taxid = (?)", lca).fetchone()
             lca_lineage = list(map(int, lca_lineage_query[0].split(",")))
 
             # TODO: Change this into an UPSERT-like thing to remove the need for
-            # including ALL taxids when attaching the proteodb the first time,
+            # including ALL taxids when attaching the taxref the first time,
             # and remove the need to delete all count = 0 below.
             update_cmd = "UPDATE cumulative SET count = count + 1 WHERE taxid IN ({})"
             self.db.execute(update_cmd.format(",".join("?"*len(lca_lineage))), lca_lineage)
@@ -378,7 +378,7 @@ class Sample_DB_wrapper():
         cmd = """INSERT INTO rank_counts
           SELECT rank, count(rank)
           FROM peptides
-          JOIN proteodb.species ON peptides.discriminative_taxid = proteodb.species.taxid
+          JOIN taxref.species ON peptides.discriminative_taxid = taxref.species.taxid
           GROUP BY rank
           ORDER BY count(rank) DESC
           """
@@ -397,8 +397,8 @@ class Sample_DB_wrapper():
         """
         logging.debug("Getting cumulative rank:count mappings.")
         cmd = """SELECT rank, sum(count) FROM cumulative
-          JOIN proteodb.species
-          ON proteodb.species.taxid = cumulative.taxid
+          JOIN taxref.species
+          ON taxref.species.taxid = cumulative.taxid
           WHERE cumulative.taxid != 1 
             AND cumulative.taxid != 131567
           GROUP BY rank
@@ -415,7 +415,7 @@ class Sample_DB_wrapper():
         rank_set = self.rank_hierarchy[self.ranks[rank]:]
 
         cmd = """SELECT peptide, rank, spname FROM peptides
-          JOIN proteodb.species ON proteodb.species.taxid = peptides.discriminative_taxid
+          JOIN taxref.species ON taxref.species.taxid = peptides.discriminative_taxid
           WHERE rank IN ({})
           ORDER BY rank""".format(",".join("?"*len(rank_set)))
         result = self.db.execute(cmd, rank_set).fetchall()
@@ -433,18 +433,18 @@ class Sample_DB_wrapper():
         SELECT cumulative.count, COALESCE(disc_pep_count, 0), rank, species.spname
         FROM cumulative
         JOIN species
-        ON cumulative.taxid = proteodb.species.taxid
+        ON cumulative.taxid = taxref.species.taxid
         LEFT JOIN
-          (SELECT COUNT(peptide) AS disc_pep_count, proteodb.species.spname 
+          (SELECT COUNT(peptide) AS disc_pep_count, taxref.species.spname 
            FROM peptides 
-           JOIN proteodb.species 
-           ON proteodb.species.taxid = peptides.discriminative_taxid
-           GROUP BY rank, proteodb.species.spname
+           JOIN taxref.species 
+           ON taxref.species.taxid = peptides.discriminative_taxid
+           GROUP BY rank, taxref.species.spname
           ) AS disc_per_spname
-        ON disc_per_spname.spname = proteodb.species.spname
-        WHERE proteodb.species.rank in ({})
+        ON disc_per_spname.spname = taxref.species.spname
+        WHERE taxref.species.rank in ({})
         AND cumulative.count > 0
-        GROUP BY rank, proteodb.species.spname
+        GROUP BY rank, taxref.species.spname
         ORDER BY cumulative.count DESC
         """.format(",".join("?"*len(rank_set)))
 
@@ -479,8 +479,8 @@ class Sample_DB_wrapper():
               AND mappings.end >= annotationdb.annotations.end
             )
           )
-        JOIN proteodb.refseqs ON mappings.target = proteodb.refseqs.header
-        JOIN proteodb.species ON proteodb.refseqs.taxid = proteodb.species.taxid
+        JOIN taxref.refseqs ON mappings.target = taxref.refseqs.header
+        JOIN taxref.species ON taxref.refseqs.taxid = taxref.species.taxid
         GROUP BY spname, product
         ORDER BY prod_count DESC
         """
