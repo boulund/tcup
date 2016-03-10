@@ -345,13 +345,13 @@ class Sample_DB_wrapper():
                 if tracks:
                     logging.debug("Found track for %s, taxid was merged", peptide)
             lca = self.lowest_common_ancestor(tracks)
-            try:
-                if lca[0] != 131567:  # taxid=131567 is "cellular organisms"
-                    # TODO: verbose
-                    #logging.debug("Peptide %s is discriminative at rank '%s' for %s", peptide[0], rank, spname)
-                    self.db.execute("UPDATE peptides SET discriminative_taxid = ? WHERE peptide = ?", (lca[0], peptide[0]))
-            except IndexError:
+            if len(lca) == 0:
                 logging.warning("Found no LCA for %s", peptide)
+                continue
+            if lca[0] != 131567:  # taxid=131567 is "cellular organisms"
+                # TODO: verbose
+                #logging.debug("Peptide %s is discriminative at rank '%s' for %s", peptide[0], rank, spname)
+                self.db.execute("UPDATE peptides SET discriminative_taxid = ? WHERE peptide = ?", (lca[0], peptide[0]))
 
             # Find the track lineage of the LCA to increment the count of
             # number of discriminative fragments beneath that node on all
@@ -399,6 +399,8 @@ class Sample_DB_wrapper():
         cmd = """SELECT rank, sum(count) FROM cumulative
           JOIN proteodb.species
           ON proteodb.species.taxid = cumulative.taxid
+          WHERE cumulative.taxid != 1 
+            AND cumulative.taxid != 131567
           GROUP BY rank
         """
         result = self.db.execute(cmd).fetchall()
@@ -586,6 +588,7 @@ def get_results_from_existing_db(sample_databases,
 
         disc_peps_per_rank = sample_db.get_discriminative_counts_from_rank(taxonomic_rank)
         rank_counts = sample_db.get_cumulative_rank_counts()
+        print(rank_counts)
 
         print(sample_db.dbfile.center(60, "-"))
         print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts)
@@ -625,7 +628,7 @@ def main(options):
                 blacklisted_seqs)
         sample_db.insert_blat_hits_into_db(blat_parser)
 
-        sample_db.attach_taxref_db(options.proteodb)
+        sample_db.attach_taxref_db(options.taxref_db)
         sample_db.determine_discriminative_ranks()
         sample_db.count_discriminative_per_rank()
 
