@@ -284,17 +284,17 @@ def parse_commandline(argv):
     """
 
     desc = """Prepare a proteotyping database. 
-    Step 1) Prepare a file with FASTA header->taxid mapping using sub-command
+    Step 1) Prepare a file with FASTA header->taxid mappings using sub-command
     "header_mappings".
-    Step 2) Use the header->taxid mappings to create a ready-to-use 
-    proteotyping database (proteodb) to be filled in with sample data.
-    Fredrik Boulund (c) 2015."""
+    Step 2) Use the header->taxid mappings to create a ready-to-use
+    proteotyping taxonomy reference database (taxref) to be filled in with
+    sample data.  Fredrik Boulund (c) 2015."""
     parser = argparse.ArgumentParser(description=desc)
     subparsers = parser.add_subparsers(dest="subcommand", help="Choose a sub-command.")
 
     parser_refseqs = subparsers.add_parser("header_mappings", 
             help="Prepare a list of 'sequence header->taxid' mappings based on gi:taxid mappings from NCBI RefSeq and NCBI Taxonomy taxdump.")
-    parser_proteodb = subparsers.add_parser("proteodb",
+    parser_taxref_db = subparsers.add_parser("taxref_db",
             help="Prepare a proteotyping database based on NCBI Taxonomy.")
     
     parser_refseqs.add_argument("refdirs",  nargs="+",
@@ -316,24 +316,24 @@ def parse_commandline(argv):
             default=False,
             help="Log to file instead of STDOUT.")
 
-    parser_proteodb.add_argument("header_mappings", nargs="+",
+    parser_taxref_db.add_argument("header_mappings", nargs="+",
             help="Path(s) to or filename(s) of two column tab-delimited text file with header->taxid mappings")
-    parser_proteodb.add_argument("--dbfile", type=str, dest="dbfile",
+    parser_taxref_db.add_argument("--dbfile", type=str, dest="dbfile",
             default="taxref.sqlite3", 
             help="Filename to write the proteotyping database to [%(default)s].")
-    parser_proteodb.add_argument("--db-taxonomy-ver", dest="taxonomy_ver", type=str,
+    parser_taxref_db.add_argument("--db-taxonomy-ver", dest="taxonomy_ver", type=str,
             default="",
             help="Specify Taxonomy version, e.g. '2015-11-15'.")
-    parser_proteodb.add_argument("--db-refseq-ver", dest="refseq_ver", type=str,
+    parser_taxref_db.add_argument("--db-refseq-ver", dest="refseq_ver", type=str,
             default="",
             help="Specify RefSeq version, e.g. '2015-11-15'.")
-    parser_proteodb.add_argument("--db-comment", dest="comment", type=str,
+    parser_taxref_db.add_argument("--db-comment", dest="comment", type=str,
             default="",
             help="A database creation comment added to the SQLite3 database.")
-    parser_proteodb.add_argument("--loglevel", choices=["INFO", "DEBUG"], 
+    parser_taxref_db.add_argument("--loglevel", choices=["INFO", "DEBUG"], 
             default="DEBUG", 
             help="Set logging level [%(default)s].")
-    parser_proteodb.add_argument("--logfile", 
+    parser_taxref_db.add_argument("--logfile", 
             default=False,
             help="Log to file instead of STDOUT.")
 
@@ -361,7 +361,7 @@ if __name__ == "__main__":
                 options.gi_taxid_dmp, 
                 options.outfile,
                 options.globpattern_fasta)
-    elif options.subcommand == "proteodb":
+    elif options.subcommand == "taxref_db":
         prepare_db(options.dbfile, 
                 options.header_mappings, 
                 options.taxonomy_ver, 
