@@ -293,9 +293,9 @@ def parse_commandline(argv):
     subparsers = parser.add_subparsers(dest="subcommand", help="Choose a sub-command.")
 
     parser_refseqs = subparsers.add_parser("header_mappings", 
-            help="Prepare a list of 'sequence header->taxid' mappings based on gi:taxid mappings from NCBI RefSeq and NCBI Taxonomy taxdump.")
+            help="Prepare a list of 'sequence_header->taxid' mappings based on gi:taxid mappings from NCBI RefSeq sequences and NCBI Taxonomy taxdump.")
     parser_taxref_db = subparsers.add_parser("taxref_db",
-            help="Prepare a proteotyping database based on NCBI Taxonomy.")
+            help="Prepare a proteotyping taxonomy reference sequence (taxref) database based on NCBI Taxonomy.")
     
     parser_refseqs.add_argument("refdirs",  nargs="+",
             help="Path to NCBI RefSeq dir with sequences in FASTA format (*.fna). Walks subfolders.")
