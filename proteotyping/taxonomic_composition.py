@@ -37,7 +37,10 @@ def parse_commandline(argv):
     parser.add_argument("--annotation-db", dest="annotation_db_file", metavar="FILE",
             default="annotation_db.sqlite3",
             help="Path to annotation sqlite3 DB [%(default)s].")
-    parser.add_argument("--sample-db", dest="sample_db", action="store_true",
+    parser.add_argument("--sample-db", dest="sample_db", metavar="SAMPLEDB",
+            default=False,
+            help="Filename of sqlite3 db created for the sample [<sample.blast8>.sqlite3].")
+    parser.add_argument("--pre-existing", dest="pre_existing", action="store_true",
             default=False,
             help="The supplied 'BLAT output file' is really a processed sample db containing proteotyping results [%(default)s]")
     parser.add_argument("--taxonomic-rank", dest="taxonomic_rank", metavar="LVL", type=str,
@@ -615,8 +618,13 @@ def main(options):
             logging.warning("{} ends with .sqlite3, did you mean to use --sample-db?".format(blat_file))
             logging.warning("Press Ctrl+c to cancel within %i sec...", sleep_time)
             time.sleep(sleep_time)
-        sample_db_filename = blat_file + ".sqlite3"
+
+        if options.sample_db:
+            sample_db_filename = options.sample_db
+        else:
+            sample_db_filename = blat_file + ".sqlite3"
         sample_db = Sample_DB_wrapper(sample_db_filename)
+
         blat_parser = parse_blat_output(blat_file, 
                 options.min_identity, 
                 options.min_matches, 
@@ -647,7 +655,7 @@ if __name__ == "__main__":
 
     options = parse_commandline(argv)
 
-    if options.sample_db:
+    if options.pre_existing:
         sample_databases = [Sample_DB_wrapper(filename, create_new=False) for filename in options.FILE]
         for sample_db in sample_databases:
             sample_db.attach_taxref_db(options.taxref_db)
