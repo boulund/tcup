@@ -12,10 +12,10 @@ import logging
 
 try: 
     from proteotyping.utils import read_fasta, find_files, grouper, existing_file
-    from proteotyping.proteotyping_db import NCBITaxa_mod as Taxref_DB_wrapper
+    from proteotyping.taxref_db import NCBITaxa_mod as Taxref_DB_wrapper
 except ImportError:
     from utils import read_fasta, find_files, grouper, existing_file
-    from proteotyping_db import NCBITaxa_mod as Taxref_DB_wrapper
+    from taxref_db import NCBITaxa_mod as Taxref_DB_wrapper
 
 
 def parse_args(argv):
@@ -33,7 +33,7 @@ def parse_args(argv):
     parser.add_argument("annotation_dirs", nargs="+",
             help="Path to root dir(s) containing annotation files (*.gff).")
     parser.add_argument("--db-filename", dest="db_filename",
-            default="annotationdb.sql",
+            default="annotation_db.sqlite3",
             help="Filename to save annotation DB to [%(default)s].")
     parser.add_argument("--glob-pattern-gff", dest="glob_pattern_gff",
             default="*.gff",

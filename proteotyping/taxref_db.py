@@ -337,7 +337,7 @@ def parse_commandline(argv):
             default=False,
             help="Log to file instead of STDOUT.")
 
-    if len(argv) < 2:
+    if len(argv) < 3:
         parser.print_help()
         exit()
 
