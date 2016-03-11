@@ -545,8 +545,13 @@ def write_results_xlsx(disc_peps_per_rank, rank_counts, hits, results_filename):
     worksheet_composition.set_column(2, 2, 9.0)
     worksheet_composition.set_column(3, 3, 11.0)
     worksheet_composition.set_column(4, 4, 40.0)
+    row_adjustment = 0
     for row, data in enumerate(disc_peps_per_rank, start=1):
+        row = row - row_adjustment
         cum_count, count, rank, spname = data
+        if spname == "root" or spname =="cellular organisms":
+            row_adjustment += 1
+            continue
         percentage = cum_count/rank_counts[rank]
         worksheet_composition.write(row, 0, cum_count)
         worksheet_composition.write(row, 1, count)
