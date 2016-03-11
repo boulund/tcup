@@ -31,10 +31,12 @@ def parse_commandline(argv):
     parser.add_argument("FILE", nargs="+",
             type=existing_file,
             help="BLAT output file.")
-    parser.add_argument("--taxref-db", dest="taxref_db", metavar="DB", type=str,
-            default="taxref.sqlite3",
+    parser.add_argument("--taxref-db", dest="taxref_db", metavar="TAXREFDB", 
+            type=existing_file,
+            default="taxref_db.sqlite3",
             help="Path to taxonomy reference sqlite3 DB [%(default)s].")
-    parser.add_argument("--annotation-db", dest="annotation_db_file", metavar="FILE",
+    parser.add_argument("--annotation-db", dest="annotation_db_file", metavar="ANNOTATIONDB", 
+            type=existing_file,
             default="annotation_db.sqlite3",
             help="Path to annotation sqlite3 DB [%(default)s].")
     parser.add_argument("--sample-db", dest="sample_db", metavar="SAMPLEDB",
@@ -42,7 +44,7 @@ def parse_commandline(argv):
             help="Filename of sqlite3 db created for the sample [<sample.blast8>.sqlite3].")
     parser.add_argument("--pre-existing", dest="pre_existing", action="store_true",
             default=False,
-            help="The supplied 'BLAT output file' is really a processed sample db containing proteotyping results [%(default)s]")
+            help="The supplied 'BLAT output file' is really an sqlite3 sample db.")
     parser.add_argument("--taxonomic-rank", dest="taxonomic_rank", metavar="LVL", type=str,
             choices=["no rank", "subspecies", "species", "genus", "family", "order", "class", "phylum", "superkingdom"],
             default="family",
@@ -54,7 +56,7 @@ def parse_commandline(argv):
     parser.add_argument("--write-discriminative-peptides", metavar="FILE",
             dest="write_discriminative_peptides", 
             default=False,
-            help="Write all discriminative peptides to FILE [not used].")
+            help="Write all discriminative peptides to FILE.")
     parser.add_argument("--print-annotations", dest="print_annotations", action="store_true",
             default=False,
             help="Print all annotated regions hit by discriminative fragments [%(default)s].")
@@ -62,17 +64,17 @@ def parse_commandline(argv):
             default=6,
             help="Minimum peptide matches (i.e. peptide length) [%(default)s].")
     parser.add_argument("-i", "--min-identity", dest="min_identity", metavar="I", type=float,
-            default=90,
+            default=90.0,
             help="Filter out hits with less than or equal to this percentage identity [%(default)s].")
     parser.add_argument("--min-coverage", dest="min_coverage", metavar="C", type=float,
-            default=1,
+            default=1.0,
             help="Proportion of fragment covered in alignment [%(default)s].")
     parser.add_argument("--max-pid-diff", dest="max_pid_diff", type=float, metavar="D",
             default=5.0,
             help="Maximum identity difference between highest and lowest hit for each peptide. Floating point between 0.0-100.0 [%(default)s].")
     parser.add_argument("--write-xlsx", dest="write_xlsx", metavar="XLSX_FILE",
             default="",
-            help="Write results to Excel xlsx file [Not used].")
+            help="Write results to Excel file.")
     parser.add_argument("--output", dest="output", metavar="FILE",
             default=False,
             help="Write results to FILE instead of STDOUT.")
