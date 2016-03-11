@@ -3,7 +3,7 @@
 # Fredrik Boulund (c) 2015
 # Proteotyping
 
-from sys import argv, exit
+from sys import argv, exit, stdout
 from collections import defaultdict, OrderedDict, Counter
 from itertools import groupby
 import shutil
@@ -44,11 +44,14 @@ def parse_commandline(argv):
             choices=["no rank", "subspecies", "species", "genus", "family", "order", "class", "phylum", "superkingdom"],
             default="family",
             help="Set the taxonomic level on which hits are grouped [%(default)s].")
-    parser.add_argument("--print-all-discriminative-peptides", 
-            dest="print_all_discriminative_peptides", 
-            action="store_true",
+    parser.add_argument("--blacklist", metavar="FILE", dest="blacklist",
+            default=None,
+            type=existing_file,
+            help="File with sequence headers to blacklist (i.e. to ignore when parsing blast8 output).")
+    parser.add_argument("--write-discriminative-peptides", metavar="FILE",
+            dest="write_discriminative_peptides", 
             default=False,
-            help="Print all discriminative peptides [%(default)s].")
+            help="Write all discriminative peptides to FILE [not used].")
     parser.add_argument("--print-annotations", dest="print_annotations", action="store_true",
             default=False,
             help="Print all annotated regions hit by discriminative fragments [%(default)s].")
@@ -67,13 +70,9 @@ def parse_commandline(argv):
     parser.add_argument("--write-xlsx", dest="write_xlsx", metavar="XLSX_FILE",
             default="",
             help="Write results to Excel xlsx file [Not used].")
-    parser.add_argument("--output", dest="output",
-            default="",
-            help="Write results to this filename [results/FILE.results].")
-    parser.add_argument("--blacklist", metavar="FILE", dest="blacklist",
-            default=None,
-            type=existing_file,
-            help="File with sequence headers to blacklist (i.e. to ignore when parsing blast8 output).")
+    parser.add_argument("--output", dest="output", metavar="FILE",
+            default=False,
+            help="Write results to FILE instead of STDOUT.")
 
 
     devoptions = parser.add_argument_group("Developer options", "Voids warranty ;)")
@@ -486,40 +485,41 @@ class Sample_DB_wrapper():
         return result
 
 
-def print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts):
+def print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, outfile):
     """
     Print sorted lists of discriminative peptide counts.
     """
 
     disc_peps_per_rank.sort(key=lambda c: c[0]/rank_counts[c[2]], reverse=True)
 
-    print("Discriminative peptides per spname".center(60, "-"))
-    print("{:<10} {:<6} {:>6} {:<20} {:<40}".format("Cumulative", "Count", "%", "Rank", "Description"))
+    print("Discriminative peptides per spname".center(60, "-"), file=outfile)
+    print("{:<10} {:<6} {:>6} {:<20} {:<40}".format("Cumulative", "Count", "%", "Rank", "Description"), file=outfile)
     for cum_count, count, rank, spname in disc_peps_per_rank:
         if spname in ("root", "cellular organisms"):
             continue
         percentage = cum_count/rank_counts[rank] * 100
-        print("{:<10} {:<6} {:>6.2f} {:<20} {:<40}".format(cum_count, count, percentage, rank, spname))
+        print("{:<10} {:<6} {:>6.2f} {:<20} {:<40}".format(cum_count, count, percentage, rank, spname), file=outfile)
 
 
-def print_discriminative_peptides(discriminative):
+def write_discriminative_peptides(discriminative, outfilename):
     """
     Print name and assignment of discriminative peptides.
     """
-    print("Discriminative peptides".center(60, "-"))
-    print("{:<20} {:<15} {:<30}".format("Peptide", "Rank", "Description"))
-    for d in discriminative: 
-        print("{:<20} {:<15} {:<30}".format(*d))
+    with open(outfilename, 'w') as outfile:
+        print("Discriminative peptides".center(60, "-"), file=outfile)
+        print("{:<20} {:<15} {:<30}".format("Peptide", "Rank", "Description"), file=outfile)
+        for d in discriminative: 
+            print("{:<20} {:<15} {:<30}".format(*d), file=outfile)
 
 
-def print_annotation_hits(hits):
+def print_annotation_hits(hits, outfile):
     """
     Print hits to annotated genome regions.
     """
-    print("Hits to annotated genome regions".center(60, "-"))
-    print("{:<40}\t{:<7}\t{:<45}\t{:<}".format("Spname", "Count", "Product", "Features"))
+    print("Hits to annotated genome regions".center(60, "-"), file=outfile)
+    print("{:<40}\t{:<7}\t{:<45}\t{:<}".format("Spname", "Count", "Product", "Features"), file=outfile)
     for spname, count, product, features in hits:
-        print("{:<40}\t{:<7}\t{:<45}\t{:<}".format(spname, count, product, features))
+        print("{:<40}\t{:<7}\t{:<45}\t{:<}".format(spname, count, product, features), file=outfile)
 
 
 def write_results_xlsx(disc_peps_per_rank, rank_counts, hits, results_filename):
@@ -573,9 +573,10 @@ def write_results_xlsx(disc_peps_per_rank, rank_counts, hits, results_filename):
 def get_results_from_existing_db(sample_databases,
         annotation_db_file, 
         taxonomic_rank="family",
-        print_all_discriminative_peptides=False,
+        discpeps_file=False,
         print_annotations=False,
-        write_xlsx=""):
+        write_xlsx="",
+        outfile=stdout):
     """
     Retrieve results from existing sample database(s).
     """
@@ -586,8 +587,8 @@ def get_results_from_existing_db(sample_databases,
         disc_peps_per_rank = sample_db.get_discriminative_counts_from_rank(taxonomic_rank)
         rank_counts = sample_db.get_cumulative_rank_counts()
 
-        print(sample_db.dbfile.center(60, "-"))
-        print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts)
+        print(sample_db.dbfile.center(60, "-"), file=outfile)
+        print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, outfile)
 
         if write_xlsx or print_annotations:
             hits = sample_db.get_hits_to_annotated_regions()
@@ -595,11 +596,11 @@ def get_results_from_existing_db(sample_databases,
             xlsx_filename = write_xlsx
             write_results_xlsx(disc_peps_per_rank, rank_counts, hits, xlsx_filename)
         if print_annotations:
-            print_annotation_hits(hits)
+            print_annotation_hits(hits, outfile)
 
-        if print_all_discriminative_peptides:
+        if discpeps_file:
             disc = sample_db.get_discriminative_peptides_from_rank(taxonomic_rank)
-            print_discriminative_peptides(disc)
+            write_discriminative_peptides(disc, discpeps_file)
 
 
 def main(options):
@@ -628,12 +629,18 @@ def main(options):
         sample_db.determine_discriminative_ranks()
         sample_db.count_discriminative_per_rank()
 
-        get_results_from_existing_db([sample_db],
-                options.annotation_db_file,
-                options.taxonomic_rank,
-                options.print_all_discriminative_peptides,
-                options.print_annotations,
-                options.write_xlsx)
+        if options.output:
+            output = open(options.output, 'w')
+        else:
+            output = stdout
+        with output:
+            get_results_from_existing_db([sample_db],
+                    options.annotation_db_file,
+                    options.taxonomic_rank,
+                    options.write_discriminative_peptides,
+                    options.print_annotations,
+                    options.write_xlsx,
+                    output)
 
 
 if __name__ == "__main__":
@@ -644,11 +651,17 @@ if __name__ == "__main__":
         sample_databases = [Sample_DB_wrapper(filename, create_new=False) for filename in options.FILE]
         for sample_db in sample_databases:
             sample_db.attach_taxref_db(options.taxref_db)
-        get_results_from_existing_db(sample_databases,
+        if options.output:
+            output = open(options.output, 'w')
+        else:
+            output = stdout
+        with output:
+            get_results_from_existing_db(sample_databases,
                 options.annotation_db_file,
                 options.taxonomic_rank,
-                options.print_all_discriminative_peptides,
+                options.write_discriminative_peptides,
                 options.print_annotations,
-                options.write_xlsx)
+                options.write_xlsx,
+                output)
     else:
         main(options)
