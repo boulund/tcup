@@ -70,6 +70,10 @@ def parse_commandline(argv):
     parser.add_argument("--output", dest="output",
             default="",
             help="Write results to this filename [results/FILE.results].")
+    parser.add_argument("--blacklist", metavar="FILE", dest="blacklist",
+            default=None,
+            type=existing_file,
+            help="File with sequence headers to blacklist (i.e. to ignore when parsing blast8 output).")
 
 
     devoptions = parser.add_argument_group("Developer options", "Voids warranty ;)")
@@ -79,16 +83,9 @@ def parse_commandline(argv):
     devoptions.add_argument("--logfile", dest="logfile",
             default="proteotyping.log",
             help="Filename for log output [%(default)s].")
-    devoptions.add_argument("--numCPUs", dest="numCPUs", type=int,
-            default=16,
-            help="Number of CPUs to utilize in parallel regions [%(default)s].")
     devoptions.add_argument("--leave-out", metavar="HEADERS", dest="leave_out",
             default="",
             help="Disregard any hits to sequence with HEADER when parsing and filtering blast8 output. Can be a list of comma separated FASTA headers (no spaces).")
-    devoptions.add_argument("--blacklist", metavar="FILE", dest="blacklist",
-            default=None,
-            type=existing_file,
-            help="File with sequence headers to blacklist (i.e. to ignore when parsing blast8 output).")
 
     if len(argv) < 2:
         parser.print_help()
