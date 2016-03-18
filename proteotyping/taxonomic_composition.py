@@ -452,15 +452,41 @@ class Sample_DB_wrapper():
         result = self.db.execute(cmd, rank_set).fetchall()
         return result
     
-    def get_peptide_hits(self, rank):
+    def get_discriminative_hits_to_annotated_regions_from_rank(self, rank):
         """
-        Retrieve all hits at or below a given rank, sorted by target sequence.
+        Retrieve all annotation regions matched by discriminative peptides 
+        from given rank.
+        """
 
-        :param rank:  Rank at and below which to return hits.
-        :return:  List of hits to reference sequences, 
-                sorted by reference sequence headers.
-        """
-        pass
+        rank_set = self.rank_hierarchy[self.ranks[rank]:]
+
+        cmd = """
+        SELECT spname, disc.rank, Count(product) as prod_count, product, features FROM 
+          (SELECT peptide, rank FROM peptides
+                  JOIN taxref.species ON taxref.species.taxid = peptides.discriminative_taxid
+                  WHERE rank IN ({})) as disc
+        JOIN mappings 
+            ON mappings.peptide = disc.peptide
+        JOIN annotationdb.annotations 
+            ON annotationdb.annotations.header = mappings.target
+                AND (mappings.start BETWEEN 
+                     annotationdb.annotations.start AND annotationdb.annotations.end 
+                     OR 
+                     mappings.end BETWEEN 
+                     annotationdb.annotations.start AND annotationdb.annotations.end
+                     OR (mappings.start <= annotationdb.annotations.start 
+                      AND mappings.end >= annotationdb.annotations.end
+                     )
+                )
+        JOIN taxref.refseqs ON mappings.target = taxref.refseqs.header
+        JOIN taxref.species ON taxref.refseqs.taxid = taxref.species.taxid
+        GROUP BY spname, product
+        ORDER BY prod_count DESC
+        """.format(",".join("?"*len(rank_set)))
+
+        logging.debug("Getting annotated regions matched by discriminative peptides at rank %s", rank)
+        result = self.db.execute(cmd, rank_set).fetchall()
+        return result
     
     def get_hits_to_annotated_regions(self):
         """
@@ -485,7 +511,7 @@ class Sample_DB_wrapper():
         GROUP BY spname, product
         ORDER BY prod_count DESC
         """
-        logging.debug("Retrieving all annotated regions matched by any discriminative peptide...")
+        logging.debug("Retrieving all annotated regions matched by any peptide...")
         result = self.db.execute(cmd).fetchall()
         return result
 
@@ -522,9 +548,9 @@ def print_annotation_hits(hits, outfile):
     Print hits to annotated genome regions.
     """
     print("Hits to annotated genome regions".center(60, "-"), file=outfile)
-    print("{:<40}\t{:<7}\t{:<45}\t{:<}".format("Spname", "Count", "Product", "Features"), file=outfile)
-    for spname, count, product, features in hits:
-        print("{:<40}\t{:<7}\t{:<45}\t{:<}".format(spname, count, product, features), file=outfile)
+    print("{:<40}\t{:<10}\t{:<7}\t{:<45}\t{:<}".format("Spname", "Disc. level", "Count", "Product", "Features"), file=outfile)
+    for spname, disc_level, count, product, features in hits:
+        print("{:<40}\t{:<10}\t{:<7}\t{:<45}\t{:<}".format(spname, disc_level, count, product, features), file=outfile)
 
 
 def write_results_xlsx(disc_peps_per_rank, rank_counts, hits, results_filename):
@@ -564,18 +590,21 @@ def write_results_xlsx(disc_peps_per_rank, rank_counts, hits, results_filename):
 
     worksheet_annotations = workbook.add_worksheet("Hits to annotated regions")
     worksheet_annotations.write(0, 0, "Species")
-    worksheet_annotations.write(0, 1, "Count")
-    worksheet_annotations.write(0, 2, "Product")
-    worksheet_annotations.write(0, 3, "Features")
+    worksheet_annotations.write(0, 1, "Disc. level")
+    worksheet_annotations.write(0, 2, "Count")
+    worksheet_annotations.write(0, 3, "Product")
+    worksheet_annotations.write(0, 4, "Features")
     worksheet_annotations.set_column(0, 0, 53.0)
-    worksheet_annotations.set_column(1, 1, 8.0)
-    worksheet_annotations.set_column(2, 2, 53.0)
+    worksheet_annotations.set_column(1, 1, 10.0)
+    worksheet_annotations.set_column(2, 2, 8.0)
+    worksheet_annotations.set_column(3, 3, 53.0)
     for row, data in enumerate(hits, start=1):
-        spname, product_count, product, features = data
+        spname, disc_level, product_count, product, features = data
         worksheet_annotations.write(row, 0, spname)
-        worksheet_annotations.write(row, 1, product_count)
-        worksheet_annotations.write(row, 2, product)
-        worksheet_annotations.write(row, 3, features)
+        worksheet_annotations.write(row, 1, disc_level)
+        worksheet_annotations.write(row, 2, product_count)
+        worksheet_annotations.write(row, 3, product)
+        worksheet_annotations.write(row, 4, features)
     
     workbook.close()
 
@@ -601,7 +630,7 @@ def get_results_from_existing_db(sample_databases,
         print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, outfile)
 
         if write_xlsx or print_annotations:
-            hits = sample_db.get_hits_to_annotated_regions()
+            hits = sample_db.get_discriminative_hits_to_annotated_regions_from_rank(taxonomic_rank)
         if write_xlsx:
             xlsx_filename = write_xlsx
             write_results_xlsx(disc_peps_per_rank, rank_counts, hits, xlsx_filename)
