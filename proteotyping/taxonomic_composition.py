@@ -521,7 +521,14 @@ def print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, outf
     Print sorted lists of discriminative peptide counts.
     """
 
-    disc_peps_per_rank.sort(key=lambda c: c[0]/rank_counts[c[2]], reverse=True)
+    try:
+        disc_peps_per_rank.sort(key=lambda c: c[0]/rank_counts[c[2]], reverse=True)
+    except KeyError:
+        # This happens when there are no discriminative peptides at/below the
+        # requested level; normally only the taxonomic nodes "cellular organisms"
+        # and "root" that both have official rank 'no rank', but should not be
+        # included anyway.
+        pass
 
     print("Discriminative peptides per spname".center(60, "-"), file=outfile)
     print("{:<10} {:<6} {:>6} {:<20} {:<40}".format("Cumulative", "Count", "%", "Rank", "Description"), file=outfile)
