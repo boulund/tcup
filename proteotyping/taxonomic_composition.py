@@ -586,7 +586,10 @@ def write_results_xlsx(disc_peps_per_rank, rank_counts, hits, results_filename):
         worksheet_composition.write(row, 2, percentage, percentage_format)
         worksheet_composition.write(row, 3, rank)
         worksheet_composition.write(row, 4, spname)
-    worksheet_composition.autofilter(0, 0, row, 4)
+    try:
+        worksheet_composition.autofilter(0, 0, row, 4)
+    except NameError:
+        logging.debug("Not applying autofilter: No rows in xlsx file")
 
     worksheet_annotations = workbook.add_worksheet("Hits to annotated regions")
     worksheet_annotations.write(0, 0, "Species")
