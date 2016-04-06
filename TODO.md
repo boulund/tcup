@@ -5,3 +5,4 @@
    something UPSERT-like, to remove the need for including ALL taxids in the 
    'cumulative' table. This is one of the slowest parts of the entire code now 
    because it isn't indexed.
+ * Flesh out the CONTRIBUTING document with more details.
