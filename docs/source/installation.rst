@@ -1,54 +1,69 @@
 Installation
 ============
 |name| runs in Python 3.5 on both Windows and Linux. The install instructions
-in this document aim to both these platforms, but examples are given in Linux
-environments. Where notable difference between Windows and Linux install
+in this document aim to serve both these platforms, but examples are given in
+Linux environments. Where notable difference between Windows and Linux install
 procedure exists, they will be pointed out.
 
 
-Download |name|
-*********************
-.. _Bitbucket page: https://bitbucket.org/chalmersmathbioinformatics/proteotyping
-
-The code for |name| can be downloaded from the project's `Bitbucket page`_, either manually by 
-downloading a recent release from the webpage, or using Mercurial (hg)::
-
-    hg clone https://bitbucket.org/chalmersmathbioinformatics/proteotyping
-
-When the code has been downloaded, proceed to configure a suitable Python
-environment that will be used to run |name|.
-
-
-Anaconda Python
-***************
+Install with Anaconda Python
+****************************
 
 .. _Anaconda Python: https://www.continuum.io/downloads
+.. _Miniconda: http://conda.pydata.org/miniconda.html
+.. _Conda environment: http://conda.pydata.org/docs/using/envs.html
 
-We recommend using `Anaconda Python`_. Download and install Anaconda Python as
-per instructions on their website. 
+We recommend using `Anaconda Python`_.  Anaconda Python runs on Windows and
+Linux and requires no administrator privileges, and can be installed in your
+user's home directory. Download and install Anaconda Python 3.5 (or
+`Miniconda`_ Python 3.5) using the instructions on their website. 
 
-Create a *conda environment* which will be used to run |name|. The
-following command will create a conda environment called "proteotyping"
-containing all the required dependencies::
+Create a `Conda environment`_ in which you will install all dependencies and
+run |name|. The following commands will download a description of the
+dependencies required to run |name|, and create a conda environment called
+"|name|" containing all the required dependencies, as well as |name| itself::
 
-    conda env create -f proteotyping_environment.yml
+    wget http://bitbucket.org/chalmersmathbioinformatics/proteotyping/environment.yml
+    conda env create -f environment.yml
 
 After creating the conda environment, activate the environment::
 
     source activate proteotyping
 
-Now you can read the section :doc:`running`.
+Now you can read the section :doc:`running` for information on how to use
+|name|. 
 
 
-Installation without Anaconda
-*****************************
+Install with pip
+****************
+
+.. _pyvenv: https://docs.python.org/3/library/venv.html 
+
 |name| minimally depends on the following Python packages:
 
 * ete3
 * xlsxwriter
 
-These can be installed into your Python environment using pip::
+We recommend that you create a virtual environment (`pyvenv`_) and install
+|name| into this. The dependencies, along with |name| itself, can be installed
+into your Python environment (or active pyvenv) using `pip`, like this::
 
-   pip install ete3 xlsxwriter
+   pip install ete3 xlsxwriter proteotyping
+
+Now you can read the section :doc:`running` for information on how to use
+|name|. 
 
 
+Download |name|
+***************
+.. _Bitbucket page: https://bitbucket.org/chalmersmathbioinformatics/proteotyping
+
+The source code for |name| can be downloaded from the project's `Bitbucket
+page`_, either manually by downloading a recent release from the webpage, or
+using Mercurial (hg)::
+
+    hg clone https://bitbucket.org/chalmersmathbioinformatics/proteotyping
+
+Downloading the source code like this is not recommended for normal users, but
+important if you want to help improve on |name|. Consult the ``CONTRIBUTING``
+file in the project root folder for information on how to contribute to |name|.

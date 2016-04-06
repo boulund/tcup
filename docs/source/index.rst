@@ -21,7 +21,7 @@ samples.
 
 Read :doc:`introduction` for more details on how it works. If you prefer to
 throw yourself head-first into |name| without first knowing the details of how
-it works, checkout :doc:`installation`!
+it works, check out :doc:`installation` right away to get started!
 
 
 About
@@ -62,7 +62,7 @@ Documentation
 
    introduction
    installation
-   database_preparation
+   preparing_databases
    running
    output
 
