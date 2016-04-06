@@ -1,4 +1,4 @@
 syntax: glob
 *.pyc
 __pycache__
-
+docs/build*
