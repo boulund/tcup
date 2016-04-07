@@ -1,7 +1,26 @@
 Running Proteotyping
 ====================
-Before running |name|, ensure that the requisite databases have been
-created (see :doc:`preparing_databases`).
+Before running |name|, ensure that the requisite databases have been created
+(see :doc:`preparing_databases`). The input data to |name| are mappings of
+peptides from against the reference genomes database you used to create the
+`taxref DB` (see :doc:`preparing_databases`). 
+
+.. note::
+    **IMPORTANT:** The FASTA headers of the peptides need to contain the
+    peptide length. It should be encoded at the end of the header as a single 
+    integer after an underscore character ("_") at the end of the first space
+    separated part of the header. E.g. the following header::
+
+        >peptidename_15 some other information 
+
+    belongs to a peptide called `peptidename` that is 15 amino acids long.
+
+The mappings of peptides to reference genome sequences must be in blast8
+tabular format (without column headers or comments). We recommend using 
+`BLAT`_ or `pBLAT`_. 
+
+.. _BLAT: https://genome.ucsc.edu/FAQ/FAQblat.html
+.. _pBLAT: http://icebert.github.io/pblat/
 
 
 Taxonomic composition
