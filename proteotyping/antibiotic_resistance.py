@@ -11,6 +11,12 @@ import sqlite3
 from os import path, makedirs
 
 
+# I dislike using a global value like this, but I can't
+# figure out a better way to pass this value out of the 
+# blast8-parser generator.
+global TOTAL_PEPTIDES
+
+
 def parse_commandline():
     """
     Parse commandline.
@@ -151,11 +157,13 @@ def best_matching_family_per_peptide(blast8file, min_identity, resfinder_db, kee
         yield matching_families
 
 
-def main(options):
+def main():
     """
     Main.
     """
     global TOTAL_PEPTIDES
+
+    options = parse_commandline()
 
     if options.output:
         outfilehandle = open(options.output, 'w')
@@ -206,11 +214,4 @@ def main(options):
 
 
 if __name__ == "__main__":
-    # I dislike using a global value like this, but I can't
-    # figure out a better way to pass this value out of the 
-    # blast8-parser generator.
-    global TOTAL_PEPTIDES
-
-    options = parse_commandline()
-
-    main(options)
+    main()

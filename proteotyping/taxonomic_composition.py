@@ -652,9 +652,9 @@ def get_results_from_existing_db(sample_databases,
             write_discriminative_peptides(disc, discpeps_file)
 
 
-def main(options):
+def run_complete_pipeline(options):
     """
-    Main function that runs the complete pipeline logic.
+    The complete pipeline logic.
     """
     blacklisted_seqs = prepare_blacklist(options.blacklist, options.leave_out)
 
@@ -696,8 +696,10 @@ def main(options):
                     options.write_xlsx,
                     output)
 
-
-if __name__ == "__main__":
+def main():
+    """
+    Main function.
+    """
 
     options = parse_commandline(argv)
 
@@ -718,4 +720,7 @@ if __name__ == "__main__":
                 options.write_xlsx,
                 output)
     else:
-        main(options)
+        run_complete_pipeline(options)
+
+if __name__ == "__main__":
+    main()

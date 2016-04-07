@@ -196,8 +196,10 @@ class Annotation_DB_wrapper():
 
 
 
-if __name__ == "__main__":
-
+def main():
+    """
+    Main function.
+    """
     options = parse_args(sys.argv)
 
     taxref_db = Taxref_DB_wrapper(options.taxref)
@@ -207,3 +209,5 @@ if __name__ == "__main__":
         annotation_db.insert_annotations(annotation_generator)
 
 
+if __name__ == "__main__":
+    main()

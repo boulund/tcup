@@ -351,8 +351,11 @@ def parse_commandline(argv):
     return options
 
 
-if __name__ == "__main__":
 
+def main():
+    """
+    Main function.
+    """
     options = parse_commandline(argv)
 
     if options.subcommand == "header_mappings":
@@ -368,3 +371,5 @@ if __name__ == "__main__":
                 options.refseq_ver, 
                 options.comment)
 
+if __name__ == "__main__":
+    main()

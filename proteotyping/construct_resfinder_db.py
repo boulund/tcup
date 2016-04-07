@@ -158,11 +158,12 @@ def create_resfinder_sqlite3_db(dbfile, mappings):
     return con
 
 
-def main(options):
+def main():
     """
     Main.
     """
 
+    options = parse_commandline()
     headers = set(parse_headers_from_fasta(options.sequences))
     db_mappings = parse_resfinder_notes(options.notes)
     mapping_tuples = merge_fasta_headers_and_notes(headers, db_mappings, options.use_closest_match)
@@ -170,5 +171,4 @@ def main(options):
 
 
 if __name__ == "__main__":
-    options = parse_commandline()
-    main(options)
+    main()
