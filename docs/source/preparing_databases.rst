@@ -27,6 +27,11 @@ Note that the detection of expressed antibiotic resistance proteins and the
 estimation of taxonomic composition are two independent programs. This means
 that if you only require one of them, you only need to create the databases
 associated with the program you want to use.
+
+
+.. note::
+    All examples of commands below are for Linux environments. In Windows,
+    the program names end with ".exe", e.g. `taxonomic_composition.exe`.
   
 
 Taxref DB
@@ -53,7 +58,7 @@ To create the `taxref DB`, a single user-created input file is required, called
  
     
 Header mappings can be created for NCBI RefSeq sequences using the
-`taxref_db.py header_mappings` subprogram described in `Header mappings`_
+`header_mappings` subprogram described in `Header mappings`_
 below. It is also possible to create this mapping yourself, however you want
 to. The only important thing to note is to make sure that the first part of the
 FASTA header (up to the first space) is mapped to a valid NCBI taxid. As the
@@ -62,8 +67,8 @@ assignments in the `taxref DB`, it is imperative that these assignments are as
 correct as possible.
 
 The simplest invocation to create a `taxref DB` looks like this::
-    
-    taxref_db.py  taxref_db  <HEADER_MAPPINGS>
+   
+    taxref_db taxref_db  <HEADER_MAPPINGS>
 
 where ``<HEADER_MAPPINGS>`` is the path to a `header_mappings` file as
 described above. The program allows multiple header mapping files to be
@@ -76,7 +81,7 @@ Header mappings
 A `header_mappings` file is required to create a `taxref DB`.  
 For NCBI RefSeq sequences, it is can be created like this::
 
-    taxref_db.py  header_mappings  <REFSEQ_DIR>  <GI_TAXID_DUMP>
+    taxref_db  header_mappings  <REFSEQ_DIR>  <GI_TAXID_DUMP>
 
 where ``<REFSEQ_DIR>`` is the path to a directory containing NCBI RefSeq
 sequences in FASTA format (default having an ``*.fna`` extension), and
@@ -85,10 +90,10 @@ containing `gi` to `taxid` mappings.
 
 .. note::
     Since early 2016, NCBI are phasing out the use of `gi` numbers. The
-    ``taxref_db.py`` program will automatically search for taxid mappings for a
+    ``taxref_db`` program will automatically search for taxid mappings for a
     given RefSeq sequence if the FASTA header contains a sequence accession
     number, e.g. ``ref|NC_009925.1|``. However, expect this to be quite slow 
-    as it has to make queries for all accession numbers of the network.
+    as it has to make queries for all accession numbers over the network.
 
 
 .. _`NCBI Taxonomy`: http://www.ncbi.nlm.nih.gov/taxonomy
@@ -100,13 +105,13 @@ The `annotation DB` is used after estimating the taxonomic composition to
 present what annotated regions in the reference genome sequences were matched
 by discriminative peptides in the sample. The annotation matches are presented 
 in the xlsx (Excel) output, and can optionally be printed in the text file output
-using the ``--print-annotations`` flag to ``taxonomic_composition.py``. 
+using the ``--print-annotations`` flag to ``taxonomic_composition``. 
 
-To create the `annotation DB`, the database creation program ``annotation_db.py``
+To create the `annotation DB`, the database creation program ``annotation_db``
 parses GFF files (General Feature Format). The simplest invocation to create
 an `annotation DB` looks like this::
 
-    annotation_db.py  <TAXREF_DB>  <GFF_DIR>
+    annotation_db  <TAXREF_DB>  <GFF_DIR>
 
 where ``<TAXREF_DB>`` is the path to a pre-made `Taxref DB`_, and ``<GFF_DIR>``
 is the path to a directory containing GFF files to parse. The program allows
@@ -114,7 +119,7 @@ multiple directories to be specified on the command line, and will recursively
 search subdirectories for GFF files as well.
 
 .. note::
-    Creating an `annotation_DB` requires a pre-made `taxref DB`. Also note that
+    Creating an `annotation DB` requires a pre-made `taxref DB`. Also note that
     the program won't know what to do if it encounters GFF files for reference
     genome sequences that were not included in the creation of the `taxref DB`. 
     

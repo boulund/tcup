@@ -22,12 +22,17 @@ tabular format (without column headers or comments). We recommend using
 .. _BLAT: https://genome.ucsc.edu/FAQ/FAQblat.html
 .. _pBLAT: http://icebert.github.io/pblat/
 
+.. note::
+    All examples of command invocations in this section are aimed towards
+    Linux.  Program names under Windows end with ".exe", e.g.
+    `taxonomic_composition.exe` instead of just `taxonomic_compositon`.
+
 
 Taxonomic composition
 *********************
 A typical invocation might look something like this::
 
-    taxonomic_composition.py \
+    taxonomic_composition \
         --taxref-db <TAXREF_DB> \
         --annotation-db <ANNOTATION_DB> \
         --write-xlsx <OUTPUT_XLSX_FILENAME> \
@@ -47,7 +52,7 @@ Antibiotic resistance
 *********************
 A typical invocation might look something like this::
 
-   parse_AR_blast8.py \
+   antibiotic_resistance \
        --resfinder <RESFINDER_DB> \
        --output <OUTPUT_TXT_FILENAME> \
        <INPUT_BLAST8_FILENAME>

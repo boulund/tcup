@@ -23,8 +23,8 @@ run |name|. The following commands will download a description of the
 dependencies required to run |name|, and create a conda environment called
 "|name|" containing all the required dependencies, as well as |name| itself::
 
-    wget http://bitbucket.org/chalmersmathbioinformatics/proteotyping/environment.yml
-    conda env create -f environment.yml
+    wget http://bitbucket.org/chalmersmathbioinformatics/proteotyping/proteotyping_environment.yml
+    conda env create -f proteotyping_environment.yml
 
 After creating the conda environment, activate the environment::
 
@@ -48,10 +48,15 @@ We recommend that you create a virtual environment (`pyvenv`_) and install
 |name| into this. The dependencies, along with |name| itself, can be installed
 into your Python environment (or active pyvenv) using `pip`, like this::
 
-   pip install ete3 xlsxwriter proteotyping
+   pip install proteotyping
 
 Now you can read the section :doc:`running` for information on how to use
 |name|. 
+
+.. note::
+    At time of this writing, ete3 does not properly install its dependencies,
+    specifically `scipy`, `numpy`, and `six`. Use either conda or pip to
+    install these manually.
 
 
 Download |name|

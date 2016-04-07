@@ -48,10 +48,11 @@ Citing |name|
 If you find |name| useful, please cite us!
 The method is described in the following paper:
 
-Boulund et al. In preparation.
-Title tbd. 
-Journal tbd.
-DOI: tbd
+| Boulund et al. 
+| In preparation.
+| Title tbd. 
+| Journal tbd.
+| *DOI:* tbd
 
 
 Documentation
@@ -65,6 +66,7 @@ Documentation
    preparing_databases
    running
    output
+   publications
 
 
 Contributing
