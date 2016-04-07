@@ -1,5 +1,5 @@
 #!/usr/bin/env python3.5
-# Parse AR hits from pBLAT blast8
+# Parse AR hits from BLAT blast8
 # Fredrik Boulund 2016
 
 from sys import argv, exit, stdout
@@ -16,18 +16,18 @@ def parse_commandline():
     Parse commandline.
     """
 
-    desc = """Parse AR hits from pBLAT blast8 using ResFinder. Fredrik Boulund 2016"""
+    desc = """Parse AR hits from BLAT blast8 using ResFinder. Fredrik Boulund 2016"""
 
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument("FILE", type=str, nargs="+",
-            help="pBLAT blast8 file(s) to parse.")
+            help="BLAT blast8 file(s) to parse.")
     parser.add_argument("-r", "--resfinder", dest="resfinder",
             required=True,
             help="ResFinder sqlite3 database.")
     parser.add_argument("-m", "--min-identity", dest="min_identity",
             type=float,
             default=100.00,
-            help="Minimum identity for pBLAT matches [%(default)s].")
+            help="Minimum identity for BLAT matches [%(default)s].")
     parser.add_argument("-M", "--max-pid-difference", dest="max_pid_difference",
             type=float,
             default=0.0,
