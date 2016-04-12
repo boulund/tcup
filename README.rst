@@ -31,13 +31,13 @@ using the following commands::
     $ wget https://bitbucket.org/chalmersmathbioinformatics/proteotyping/environment.yml
     $ conda env create -f environment.yml
 
-This will create a conda environment called `proteotyping` that contains 
-all the required dependencies, and the `proteotyping` package itself. 
+This will create a conda environment called ``proteotyping`` that contains 
+all the required dependencies, and the ``proteotyping`` package itself. 
 
 Dependencies
 ------------
 Proteotyping depends on the following Python packages, easily installable via
-`conda` and `pip`.
+``conda`` and ``pip``.
 
  * `ETE Toolkit`_ (ete3)
  * `XlsxWriter`_ (xlsxwriter)
@@ -55,4 +55,3 @@ blast8 tabular format. We recommend using `BLAT`_ or `pBLAT`_ for mapping.
 
 .. _BLAT: https://genome.ucsc.edu/FAQ/FAQblat.html
 .. _pBLAT: http://icebert.github.io/pblat/
-
