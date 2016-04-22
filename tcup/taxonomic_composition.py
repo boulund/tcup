@@ -53,6 +53,9 @@ def parse_commandline(argv):
             default=None,
             type=existing_file,
             help="File with sequence headers to blacklist (i.e. to ignore when parsing blast8 output).")
+    parser.add_argument("--species-normalization", metavar="FILE", dest="species_normalization",
+            default="",
+            help="Tab separated file with species normalization factors. Using your own will overwrite built-in values.")
     parser.add_argument("--write-discriminative-peptides", metavar="FILE",
             dest="write_discriminative_peptides", 
             default=False,
@@ -516,7 +519,34 @@ class Sample_DB_wrapper():
         return result
 
 
-def print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, outfile):
+
+def parse_normalization_factors(filename):
+    """
+    Parse a tab separated file with per-species normalization factors.
+
+    Returns a dictionary with per-species normalization factors.
+    """
+    normalization_factors = {}
+    if not filename:
+        # No filename given; import and read the default file 
+        # included with the TCUP package distribution.
+        import pkg_resources
+        filename = pkg_resources.resource_filename("tcup", "species_normalization.tab")
+    logging.debug("Parsing species normalization factors from %s", filename)
+    with open(filename) as f:
+        for species_line in f:
+            try:
+                species, factor = species_line.strip().split("\t")
+                normalization_factors[species] = float(factor)
+            except ValueError:
+                logging.error("Could not parse %s. The offending line was:\n%s", filename, species_line)
+                logging.warning("Continuing without normalization factors.")
+    logging.debug("Available normalization factors: %s", normalization_factors)
+    return normalization_factors
+
+
+
+def print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, normalization_factors, outfile):
     """
     Print sorted lists of discriminative peptide counts.
     """
@@ -530,13 +560,32 @@ def print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, outf
         # included anyway.
         pass
 
+    percentages = {spname: (cum_count/rank_counts[rank], rank) for cum_count, count, rank, spname in disc_peps_per_rank}
+    species_percentage_sum = sum(p for p, r in percentages.values() if r == "species")
+    print(species_percentage_sum)
+    normalized_percentages = {}
+    for spname, percentage_rank in percentages.items():
+        percentage, rank = percentage_rank
+        if spname in normalization_factors and rank == "species":
+            print(spname)
+            print(percentage)
+            print(normalization_factors[spname])
+            print(species_percentage_sum)
+            normalized_percentages[spname] = percentage/normalization_factors[spname]/species_percentage_sum
+            print(normalized_percentages[spname])
+    print(normalized_percentages)
+
     print("Discriminative peptides per spname".center(60, "-"), file=outfile)
-    print("{:<10} {:<6} {:>6} {:<20} {:<40}".format("Cumulative", "Count", "%", "Rank", "Description"), file=outfile)
+    print("{:<10} {:<6} {:>6} {:>6} {:<20} {:<40}".format("Cumulative", "Count", "%", "% corr.", "Rank", "Description"), file=outfile)
     for cum_count, count, rank, spname in disc_peps_per_rank:
         if spname in ("root", "cellular organisms"):
             continue
         percentage = cum_count/rank_counts[rank] * 100
-        print("{:<10} {:<6} {:>6.2f} {:<20} {:<40}".format(cum_count, count, percentage, rank, spname), file=outfile)
+        try:
+            corrected_percentage = percentage / normalization_factors[spname]
+        except (KeyError, TypeError):
+            corrected_percentage = -0.0
+        print("{:<10} {:<6} {:>6.2f} {:>6.2f} {:<20} {:<40}".format(cum_count, count, percentage, corrected_percentage, rank, spname), file=outfile)
 
 
 def write_discriminative_peptides(discriminative, outfilename):
@@ -625,9 +674,10 @@ def get_results_from_existing_db(sample_databases,
         discpeps_file=False,
         print_annotations=False,
         write_xlsx="",
+        normalization_factors="",
         outfile=stdout):
     """
-    Retrieve results from existing sample database(s).
+    Retrieve and print results from existing sample database(s).
     """
 
     for sample_db in sample_databases:
@@ -637,7 +687,7 @@ def get_results_from_existing_db(sample_databases,
         rank_counts = sample_db.get_cumulative_rank_counts()
 
         print(sample_db.dbfile.center(60, "-"), file=outfile)
-        print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, outfile)
+        print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, normalization_factors, outfile)
 
         if write_xlsx or print_annotations:
             hits = sample_db.get_discriminative_hits_to_annotated_regions_from_rank(taxonomic_rank)
@@ -657,6 +707,7 @@ def run_complete_pipeline(options):
     The complete pipeline logic.
     """
     blacklisted_seqs = prepare_blacklist(options.blacklist, options.leave_out)
+    normalization_factors = parse_normalization_factors(options.species_normalization)
 
     for blat_file in options.FILE:
         if blat_file.endswith(".sqlite3"):
@@ -694,6 +745,7 @@ def run_complete_pipeline(options):
                     options.write_discriminative_peptides,
                     options.print_annotations,
                     options.write_xlsx,
+                    normalization_factors,
                     output)
 
 def main():
@@ -702,6 +754,7 @@ def main():
     """
 
     options = parse_commandline(argv)
+    normalization_factors = parse_normalization_factors(options.species_normalization)
 
     if options.pre_existing:
         sample_databases = [Sample_DB_wrapper(filename, create_new=False) for filename in options.FILE]
@@ -718,6 +771,7 @@ def main():
                 options.write_discriminative_peptides,
                 options.print_annotations,
                 options.write_xlsx,
+                normalization_factors,
                 output)
     else:
         run_complete_pipeline(options)
