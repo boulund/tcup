@@ -131,6 +131,6 @@ A modified version of `ResFinder`_ suitable for use with |name| is available
 for download `here`_. 
 
 .. _ResFinder: https://cge.cbs.dtu.dk//services/ResFinder/
-.. _here: https://bioinformatics.math.chalmers.se/proteotyping/resfinder_20160304.zip
+.. _here: https://bioinformatics.math.chalmers.se/tcup/resfinder_20160304.zip
 
 

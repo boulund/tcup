@@ -23,12 +23,12 @@ run |name|. The following commands will download a description of the
 dependencies required to run |name|, and create a conda environment called
 "|name|" containing all the required dependencies, as well as |name| itself::
 
-    wget http://bitbucket.org/chalmersmathbioinformatics/proteotyping/proteotyping_environment.yml
-    conda env create -f proteotyping_environment.yml
+    wget http://bitbucket.org/chalmersmathbioinformatics/tcup/conda_environment.yml
+    conda env create -f conda_environment.yml
 
 After creating the conda environment, activate the environment::
 
-    source activate proteotyping
+    source activate tcup
 
 Now you can read the section :doc:`running` for information on how to use
 |name|. 
@@ -48,7 +48,7 @@ We recommend that you create a virtual environment (`pyvenv`_) and install
 |name| into this. The dependencies, along with |name| itself, can be installed
 into your Python environment (or active pyvenv) using `pip`, like this::
 
-   pip install proteotyping
+   pip install tcup
 
 Now you can read the section :doc:`running` for information on how to use
 |name|. 
@@ -61,13 +61,13 @@ Now you can read the section :doc:`running` for information on how to use
 
 Download |name|
 ***************
-.. _Bitbucket page: https://bitbucket.org/chalmersmathbioinformatics/proteotyping
+.. _Bitbucket page: https://bitbucket.org/chalmersmathbioinformatics/tcup
 
 The source code for |name| can be downloaded from the project's `Bitbucket
 page`_, either manually by downloading a recent release from the webpage, or
 using Mercurial (hg)::
 
-    hg clone https://bitbucket.org/chalmersmathbioinformatics/proteotyping
+    hg clone https://bitbucket.org/chalmersmathbioinformatics/tcup
 
 Downloading the source code like this is not recommended for normal users, but
 important if you want to help improve on |name|. Consult the ``CONTRIBUTING``

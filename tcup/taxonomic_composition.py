@@ -1,7 +1,7 @@
 #!/usr/bin/env python3.5
 # encoding: utf-8
 # Fredrik Boulund (c) 2015
-# Proteotyping
+# TCUP
 
 from sys import argv, exit, stdout
 from collections import defaultdict, OrderedDict, Counter
@@ -19,13 +19,13 @@ import xlsxwriter
 try:
     from utils import find_files, grouper, existing_file
 except ImportError:
-    from proteotyping.utils import find_files, grouper, existing_file
+    from tcup.utils import find_files, grouper, existing_file
 
 
 def parse_commandline(argv):
     """Parse commandline arguments"""
 
-    desc = """Proteotyping pipeline. (c) Fredrik Boulund 2015."""
+    desc = """TCUP: Typing and Characterization using Proteomics. (c) Fredrik Boulund 2016."""
     parser = argparse.ArgumentParser(description=desc)
 
     parser.add_argument("FILE", nargs="+",
@@ -85,7 +85,7 @@ def parse_commandline(argv):
             default="DEBUG",
             help="Set logging level [%(default)s].")
     devoptions.add_argument("--logfile", dest="logfile",
-            default="proteotyping.log",
+            default="tcup.log",
             help="Filename for log output [%(default)s].")
     devoptions.add_argument("--leave-out", metavar="HEADERS", dest="leave_out",
             default="",
@@ -198,14 +198,14 @@ def parse_blat_output(filename, min_identity, min_matches,
 
 class Sample_DB_wrapper():
     """ 
-    Wrapper for an Sqlite3 database for storing proteotyping results.
+    Wrapper for an Sqlite3 database for storing TCUP results.
 
     This class also stores a hard coded rank hierarchy based on the ranks seen
     in NCBI Taxonomy. Note the problematic "no rank" assignment that can be
     encountered at different levels in the taxonomy, here incorrectly
     positioned to always be at the lowest rank.
 
-    The class has methods that allow attaching a proteotyping reference
+    The class has methods that allow attaching a TCUP reference
     database and an annotation database.
     """
 

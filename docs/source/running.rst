@@ -1,4 +1,4 @@
-Running Proteotyping
+Running |name|
 ====================
 Before running |name|, ensure that the requisite databases have been created
 (see :doc:`preparing_databases`). The input data to |name| are mappings of

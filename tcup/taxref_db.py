@@ -20,7 +20,7 @@ import gzip
 from ete3 import NCBITaxa
 
 try: 
-    from proteotyping.utils import read_fasta, find_files, grouper, existing_file
+    from tcup.utils import read_fasta, find_files, grouper, existing_file
 except ImportError:
     from utils import read_fasta, find_files, grouper, existing_file
 
@@ -177,7 +177,7 @@ class NCBITaxa_mod(NCBITaxa):
  
     def expand_taxonomy_db(self, refseq_ver, taxonomy_ver, comment):
         """
-        Prepare taxonomy DB for use with proteotyping.
+        Prepare taxonomy DB for use with TCUP.
 
         Expands the ETE3-based taxonomy database with additional tables for
         storing what nodes are associated with reference genome sequence in the
@@ -267,7 +267,7 @@ def parse_refseqs(filename):
 
 def prepare_db(dbfile, refseqs, taxonomy_ver, refseq_ver, comment):
     """
-    Prepare a proteotyping reference DB based on the taxonomy from ETE3
+    Prepare a reference DB based on the taxonomy from ETE3
     NCBITaxa, expanded with information on the nodes associated with reference
     genome sequences (e.g. from NCBI RefSeq).
     """
@@ -283,11 +283,11 @@ def parse_commandline(argv):
     Parse commandline arguments.
     """
 
-    desc = """Prepare a proteotyping database. 
+    desc = """Prepare a TCUP reference database. 
     Step 1) Prepare a file with FASTA header->taxid mappings using sub-command
     "header_mappings".
     Step 2) Use the header->taxid mappings to create a ready-to-use
-    proteotyping taxonomy reference database (taxref) to be filled in with
+    TCUP taxonomy reference database (taxref) to be filled in with
     sample data.  Fredrik Boulund (c) 2015."""
     parser = argparse.ArgumentParser(description=desc)
     subparsers = parser.add_subparsers(dest="subcommand", help="Choose a sub-command.")
@@ -295,7 +295,7 @@ def parse_commandline(argv):
     parser_refseqs = subparsers.add_parser("header_mappings", 
             help="Prepare a list of 'sequence_header->taxid' mappings based on gi:taxid mappings from NCBI RefSeq sequences and NCBI Taxonomy taxdump.")
     parser_taxref_db = subparsers.add_parser("taxref_db",
-            help="Prepare a proteotyping taxonomy reference sequence (taxref) database based on NCBI Taxonomy.")
+            help="Prepare a TCUP taxonomy reference sequence (taxref) database based on NCBI Taxonomy.")
     
     parser_refseqs.add_argument("refdirs",  nargs="+",
             help="Path to NCBI RefSeq dir with sequences in FASTA format (*.fna). Walks subfolders.")
@@ -320,7 +320,7 @@ def parse_commandline(argv):
             help="Path(s) to or filename(s) of two column tab-delimited text file with header->taxid mappings")
     parser_taxref_db.add_argument("--dbfile", type=str, dest="dbfile",
             default="taxref.sqlite3", 
-            help="Filename to write the proteotyping database to [%(default)s].")
+            help="Filename to write the TCUP taxref database to [%(default)s].")
     parser_taxref_db.add_argument("--db-taxonomy-ver", dest="taxonomy_ver", type=str,
             default="",
             help="Specify Taxonomy version, e.g. '2015-11-15'.")

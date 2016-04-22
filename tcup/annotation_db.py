@@ -11,8 +11,8 @@ import time
 import logging
 
 try: 
-    from proteotyping.utils import read_fasta, find_files, grouper, existing_file
-    from proteotyping.taxref_db import NCBITaxa_mod as Taxref_DB_wrapper
+    from tcup.utils import read_fasta, find_files, grouper, existing_file
+    from tcup.taxref_db import NCBITaxa_mod as Taxref_DB_wrapper
 except ImportError:
     from utils import read_fasta, find_files, grouper, existing_file
     from taxref_db import NCBITaxa_mod as Taxref_DB_wrapper

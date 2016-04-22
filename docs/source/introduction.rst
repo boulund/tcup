@@ -1,8 +1,9 @@
 Introduction and overview
 =========================
 |name| can estimate the taxonomic composition of a sample of microorganisms
-using peptides generated from mass spectrometry.  The programs contained in
-|name| are meant to be used in a larger proteotyping workflow like this:
+using peptides generated from mass spectrometry.  The programs contained in the
+|name| package are meant to be used in a larger proteotyping workflow like
+this:
 
 .. image:: img/overview.*
     :alt: Overview of how |name| fits into the greater picture of the proteotyping workflow.

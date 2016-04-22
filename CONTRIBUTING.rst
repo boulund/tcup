@@ -15,12 +15,12 @@ pip if you do not already have an enviornment with these installed::
 
 To modify the documentation, begin by creating a clone of the repository::
 
-    hg clone https://bitbucket.org/chalmersmathbioinformatics/proteotyping 
+    hg clone https://bitbucket.org/chalmersmathbioinformatics/tcup 
 
-Edit the documentation in ``proteotyping/docs/source/`` to your liking. Read 
+Edit the documentation in ``tcup/docs/source/`` to your liking. Read 
 up on how to use Sphinx if you are unsure of how it works. When you have made 
 changes, try rebuilding the documentation by calling ``make html`` from the ``docs`` 
-directory. The built HTML documentation in ``proteotyping/docs/build/html/``
+directory. The built HTML documentation in ``tcup/docs/build/html/``
 can then be viewed in a browser of you choice.  
 
 When you are pleased with your improvements, you should present them by
@@ -33,20 +33,20 @@ creating a `pull request`_ to the official repository.
 Code
 ****
 To improve the code, you need the same dependencies as for running
-Proteotyping. Begin by downloading the most recent version of the official
+TCUP. Begin by downloading the most recent version of the official
 repository::
 
-    hg clone https://bitbucket.org/chalmersmathbioinformatics/proteotyping 
+    hg clone https://bitbucket.org/chalmersmathbioinformatics/tcup 
 
 Make sure you have prepared a Python environment (e.g. using conda) capable of
-running Proteotyping, according to the instructions in the documentation. Then
+running TCUP, according to the instructions in the documentation. Then
 use ``pip`` to install the code in *editable mode*, so you can modify the code
 in the folder and still have the changes you make in the installed package::
 
-    cd proteotyping
+    cd tcup
     pip install -e .
 
-The above command installs Proteotyping in *editable mode*, i.e. all the files
+The above command installs TCUP in *editable mode*, i.e. all the files
 remain in their original places, but are symlinked into your current Python
 environment.
 

@@ -1,11 +1,11 @@
 """
-Proteotyping setup.
+TCUP setup.
 
 Online documentation:
-    https://proteotyping.readthedocs.org
+    https://tcup.readthedocs.org
 
 Online repository:
-    https://bitbucket.org/chalmersmathbioinformatics/proteotyping
+    https://bitbucket.org/chalmersmathbioinformatics/tcup
 """
 
 from setuptools import setup, find_packages
@@ -19,15 +19,15 @@ with open(path.join(here, "README.rst"), encoding="utf-8") as f:
     long_description = f.read()
 
 setup(
-    name="proteotyping",
+    name="tcup",
 
     # This project aims to follow semantic versioning (www.semver.org)
     version="1.0.0",
 
-    description="Proteotyping",
+    description="TCUP: Typing and Characterization using Proteomics",
     long_description=long_description,
 
-    url="https://bitbucket.org/chalmersmathbioinformatics/proteotyping",
+    url="https://bitbucket.org/chalmersmathbioinformatics/tcup",
 
     author="Fredrik Boulund",
     author_email="fredrik.boulund@chalmers.se",
@@ -46,7 +46,7 @@ setup(
         "Topic :: Scientific/Engineering :: Bio-Informatics",
     ],
 
-    keywords="proteomics proteotyping antibiotic resistance",
+    keywords="microbial typing characterization proteomics proteotyping antibiotic resistance",
 
     packages=find_packages(exclude=["docs", "tests"]),
 
@@ -66,11 +66,11 @@ setup(
 
     entry_points={
         "console_scripts": [
-            "annotation_db = proteotyping.annotation_db:main",
-            "antibiotic_resistance = proteotyping.antibiotic_resistance:main",
-            "construct_resfinder_db = proteotyping.construct_resfinder_db:main",
-            "taxonomic_composition = proteotyping.taxonomic_composition:main",
-            "taxref_db = proteotyping.taxref_db:main"
+            "annotation_db = tcup.annotation_db:main",
+            "antibiotic_resistance = tcup.antibiotic_resistance:main",
+            "construct_resfinder_db = tcup.construct_resfinder_db:main",
+            "taxonomic_composition = tcup.taxonomic_composition:main",
+            "taxref_db = tcup.taxref_db:main"
         ]
     }
 )

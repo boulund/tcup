@@ -1,4 +1,4 @@
-name: proteotyping
+name: tcup
 dependencies:
 - libgfortran=3.0=0
 - mkl=11.3.1=0

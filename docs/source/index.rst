@@ -1,8 +1,3 @@
-.. Proteotyping documentation master file, created by
-   sphinx-quickstart on Wed Apr  6 13:47:39 2016.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 |name| |version|
 ========================
 .. image:: img/landing.*
@@ -39,7 +34,7 @@ http://somepage.readthedocs.org
 welcome to look at, suggest improvements, or download and improve/contribute to
 the code at the project's Bitbucket_ page.
 
-.. _Bitbucket: https://bitbucket.org/chalmersmathbioinformatics/proteotyping
+.. _Bitbucket: https://bitbucket.org/chalmersmathbioinformatics/tcup
 
 .. _`citing`:
 
@@ -74,7 +69,7 @@ Contributing
 If you want to contribute to the development of |name|, please refer to the
 `CONTRIBUTING` document in the root of the `Bitbucket repository`_. 
 
-.. _Bitbucket repository: https://bitbucket.org/chalmersmathbioinformatics/proteotyping
+.. _Bitbucket repository: https://bitbucket.org/chalmersmathbioinformatics/tcup
 
 
 
