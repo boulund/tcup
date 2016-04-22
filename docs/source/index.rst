@@ -28,7 +28,7 @@ About
 This is the documentation for |name| version |release|, last updated |today|.  
 The documentation is available online at
 
-http://somepage.readthedocs.org
+http://tcup.readthedocs.org
 
 |name| is published as open-source under the |license| license and you are
 welcome to look at, suggest improvements, or download and improve/contribute to
