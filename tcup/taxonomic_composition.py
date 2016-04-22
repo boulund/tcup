@@ -528,8 +528,8 @@ def parse_normalization_factors(filename):
     """
     normalization_factors = {}
     if not filename:
-        # No filename given; import and read the default file 
-        # included with the TCUP package distribution.
+        # Import and read the default normalization factor file 
+        # included in the TCUP package distribution.
         import pkg_resources
         filename = pkg_resources.resource_filename("tcup", "species_normalization.tab")
     logging.debug("Parsing species normalization factors from %s", filename)
@@ -544,6 +544,24 @@ def parse_normalization_factors(filename):
     logging.debug("Available normalization factors: %s", normalization_factors)
     return normalization_factors
 
+
+def compute_corrected_and_normalized_cumulative_percentages(disc_peps_per_rank, rank_counts, normalization_factors):
+    """
+    Compute corrected and normalized cumulative percentages for each species.
+
+    Note that this only includes species with specified normalization factors!
+    """
+
+    percentages = {spname: (cum_count/rank_counts[rank], rank) for cum_count, count, rank, spname in disc_peps_per_rank}
+    pre_normalized_corrected_percentages = {}
+    for spname, percentage_rank in percentages.items():
+        percentage, rank = percentage_rank
+        if spname in normalization_factors:
+            pre_normalized_corrected_percentages[spname] = percentage/normalization_factors[spname]
+    pre_normalization_sum = sum(p for p in pre_normalized_corrected_percentages.values())
+    normalized_percentages = {spname: p/pre_normalization_sum for spname, p in pre_normalized_corrected_percentages.items()}
+
+    return normalized_percentages
 
 
 def print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, normalization_factors, outfile):
@@ -560,20 +578,7 @@ def print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, norm
         # included anyway.
         pass
 
-    percentages = {spname: (cum_count/rank_counts[rank], rank) for cum_count, count, rank, spname in disc_peps_per_rank}
-    species_percentage_sum = sum(p for p, r in percentages.values() if r == "species")
-    print(species_percentage_sum)
-    normalized_percentages = {}
-    for spname, percentage_rank in percentages.items():
-        percentage, rank = percentage_rank
-        if spname in normalization_factors and rank == "species":
-            print(spname)
-            print(percentage)
-            print(normalization_factors[spname])
-            print(species_percentage_sum)
-            normalized_percentages[spname] = percentage/normalization_factors[spname]/species_percentage_sum
-            print(normalized_percentages[spname])
-    print(normalized_percentages)
+    normalized_percentages = compute_corrected_and_normalized_cumulative_percentages(disc_peps_per_rank, rank_counts, normalization_factors)
 
     print("Discriminative peptides per spname".center(60, "-"), file=outfile)
     print("{:<10} {:<6} {:>6} {:>6} {:<20} {:<40}".format("Cumulative", "Count", "%", "% corr.", "Rank", "Description"), file=outfile)
@@ -582,7 +587,7 @@ def print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, norm
             continue
         percentage = cum_count/rank_counts[rank] * 100
         try:
-            corrected_percentage = percentage / normalization_factors[spname]
+            corrected_percentage = normalized_percentages[spname] * 100 
         except (KeyError, TypeError):
             corrected_percentage = -0.0
         print("{:<10} {:<6} {:>6.2f} {:>6.2f} {:<20} {:<40}".format(cum_count, count, percentage, corrected_percentage, rank, spname), file=outfile)
