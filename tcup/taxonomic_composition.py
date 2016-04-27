@@ -527,7 +527,14 @@ def parse_normalization_factors(filename):
     Returns a dictionary with per-species normalization factors.
     """
     normalization_factors = {}
+
+    # TODO: The following if-statement is in place to enable
+    # future development of TCUP where a file with default 
+    # normalization factors can automatically be loaded if
+    # the user does not specify one. 
     if not filename:
+        logging.debug("Not parsing normalization factors.")
+        return normalization_factors  # TODO: Remove this return statement in the future
         # Import and read the default normalization factor file 
         # included in the TCUP package distribution.
         import pkg_resources
@@ -578,19 +585,32 @@ def print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, norm
         # included anyway.
         pass
 
-    normalized_percentages = compute_corrected_and_normalized_cumulative_percentages(disc_peps_per_rank, rank_counts, normalization_factors)
-
     print("Discriminative peptides per spname".center(60, "-"), file=outfile)
-    print("{:<10} {:<6} {:>6} {:>6} {:<20} {:<40}".format("Cumulative", "Count", "%", "% corr.", "Rank", "Description"), file=outfile)
+
+    if normalization_factors:
+        normalized_percentages = compute_corrected_and_normalized_cumulative_percentages(
+                disc_peps_per_rank, rank_counts, normalization_factors)
+        print("{:<10} {:<6} {:>6} {:>7} {:<20} {:<40}".format(
+            "Cumulative", "Count", "%", "% corr.", "Rank", "Description"), file=outfile)
+    else:
+        print("{:<10} {:<6} {:>6} {:<20} {:<40}".format(
+            "Cumulative", "Count", "%", "Rank", "Description"), file=outfile)
+
     for cum_count, count, rank, spname in disc_peps_per_rank:
         if spname in ("root", "cellular organisms"):
             continue
         percentage = cum_count/rank_counts[rank] * 100
-        try:
-            corrected_percentage = normalized_percentages[spname] * 100 
-        except (KeyError, TypeError):
-            corrected_percentage = -0.0
-        print("{:<10} {:<6} {:>6.2f} {:>6.2f} {:<20} {:<40}".format(cum_count, count, percentage, corrected_percentage, rank, spname), file=outfile)
+        if normalization_factors:
+            try:
+                corrected_percentage = normalized_percentages[spname] * 100 
+            except (KeyError, TypeError):
+                corrected_percentage = -0.0
+            print("{:<10} {:<6} {:>6.2f} {:>7.2f} {:<20} {:<40}".format(
+                cum_count, count, percentage, corrected_percentage, rank, spname), file=outfile)
+        else:
+            print("{:<10} {:<6} {:>6.2f} {:<20} {:<40}".format(
+                cum_count, count, percentage, rank, spname), file=outfile)
+
 
 
 def write_discriminative_peptides(discriminative, outfilename):
