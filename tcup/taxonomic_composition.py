@@ -604,7 +604,7 @@ def print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, norm
             try:
                 corrected_percentage = normalized_percentages[spname] * 100 
             except (KeyError, TypeError):
-                corrected_percentage = -0.0
+                corrected_percentage = float("NaN")
             print("{:<10} {:<6} {:>6.2f} {:>7.2f} {:<20} {:<40}".format(
                 cum_count, count, percentage, corrected_percentage, rank, spname), file=outfile)
         else:
