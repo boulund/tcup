@@ -70,7 +70,8 @@ setup(
             "antibiotic_resistance = tcup.antibiotic_resistance:main",
             "construct_resfinder_db = tcup.construct_resfinder_db:main",
             "taxonomic_composition = tcup.taxonomic_composition:main",
-            "taxref_db = tcup.taxref_db:main"
+            "taxref_db = tcup.taxref_db:main",
+            "run_tcup = tcup.run_tcup:main"
         ]
     }
 )
