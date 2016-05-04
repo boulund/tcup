@@ -101,7 +101,7 @@ def parse_blat_output(filename, min_identity=100, keep_going=False, max_pid_diff
         except UnboundLocalError:
             if not keep_going:
                 logging.error("Parsed no hits from %s; file is empty? Exiting...", filename)
-                exit()
+                exit(2)
             else:
                 logging.warning("Parsed no hits from %s: file is empty? Continuing because --keep-going is set.", filename)
         num_remain_pep = 0
