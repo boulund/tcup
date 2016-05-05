@@ -107,7 +107,7 @@ def run_taxonomic_composition(blast8, taxref_db, annotation_db, outfilename):
     Run TCUP taxonomic composition estimation.
     """
 
-    cmd_string = "taxonomic_composition --taxref-db {taxref} --annotation-db {annotation} --output {outfile} {blast8}"
+    cmd_string = "taxonomic_composition --taxref-db {taxref} --annotation-db {annotation} --output {outfile}.txt --write-xlsx {outfile}.xlsx {blast8}"
     tax_cmd = shlex.split(cmd_string.format(taxref=taxref_db,
         annotation=annotation_db,
         outfile=outfilename,
@@ -129,7 +129,7 @@ def main():
     genome_mapping_output = os.path.basename(options.FASTA)+".genomes.blast8"
     ar_mapping_output = os.path.basename(options.FASTA)+".ar.blast8"
     ar_output = os.path.basename(options.FASTA)+".antibiotic_resistance.txt"
-    taxcomp_output = os.path.basename(options.FASTA)+".taxonomic_composition.txt"
+    taxcomp_output = os.path.basename(options.FASTA)+".taxonomic_composition"
 
 
     print("Running genome mapping...")
