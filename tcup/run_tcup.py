@@ -150,7 +150,7 @@ def main():
         genome_mapping_process = run_blast(options.FASTA, 
                 options.GENOME_DB, 
                 genome_mapping_output,
-                task="blastx")
+                task="tblastn")
         ar_mapping_process = run_blast(options.FASTA, 
                 options.RESISTANCE_DB, 
                 ar_mapping_output,
