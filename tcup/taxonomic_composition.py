@@ -72,6 +72,9 @@ def parse_commandline(argv):
     parser.add_argument("--max-pid-diff", dest="max_pid_diff", type=float, metavar="D",
             default=5.0,
             help="Maximum identity difference between highest and lowest hit for each peptide. Floating point between 0.0-100.0 [%(default)s].")
+    parser.add_argument("--inclusion-threshold", dest="inclusion_threshold", metavar="c", type=int,
+            default=5,
+            help="Minimum number of discriminative peptides required to report taxa in output [%(default)s].")
     parser.add_argument("--write-xlsx", dest="write_xlsx", metavar="XLSX_FILE",
             default="",
             help="Write results to Excel file.")
@@ -516,6 +519,20 @@ class Sample_DB_wrapper():
         return result
 
 
+def filter_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, min_count):
+    """
+    Filter out low-abundance taxa from the results listing.
+    """
+
+    filtered_disc_peps_per_rank = [taxon for taxon in disc_peps_per_rank if taxon[0] > 4]
+    filtered_rank_counts = defaultdict(int)
+    for taxon in filtered_disc_peps_per_rank:
+        filtered_rank_counts[taxon[2]] += taxon[0]
+    num_filtered = len(disc_peps_per_rank) - len(filtered_disc_peps_per_rank)
+
+    return filtered_disc_peps_per_rank, filtered_rank_counts, num_filtered
+
+    
 def print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, outfile):
     """
     Print sorted lists of discriminative peptide counts.
@@ -529,6 +546,7 @@ def print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, outf
         # and "root" that both have official rank 'no rank', but should not be
         # included anyway.
         pass
+    
 
     print("Discriminative peptides per spname".center(60, "-"), file=outfile)
     print("{:<10} {:<6} {:>6} {:<20} {:<40}".format("Cumulative", "Count", "%", "Rank", "Description"), file=outfile)
@@ -625,7 +643,8 @@ def get_results_from_existing_db(sample_databases,
         discpeps_file=False,
         print_annotations=False,
         write_xlsx="",
-        outfile=stdout):
+        outfile=stdout,
+        inclusion_threshold=5):
     """
     Retrieve results from existing sample database(s).
     """
@@ -635,6 +654,10 @@ def get_results_from_existing_db(sample_databases,
 
         disc_peps_per_rank = sample_db.get_discriminative_counts_from_rank(taxonomic_rank)
         rank_counts = sample_db.get_cumulative_rank_counts()
+
+        if inclusion_threshold:
+            disc_peps_per_rank, rank_counts, num_filtered = filter_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, inclusion_threshold)
+            logging.info("%s taxa were below reporting threshold (%s) and thus discarded from the results.", num_filtered, filter_output)
 
         print(sample_db.dbfile.center(60, "-"), file=outfile)
         print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, outfile)
@@ -694,7 +717,8 @@ def run_complete_pipeline(options):
                     options.write_discriminative_peptides,
                     options.print_annotations,
                     options.write_xlsx,
-                    output)
+                    output,
+                    options.inclusion_threshold)
 
 def main():
     """
@@ -718,7 +742,8 @@ def main():
                 options.write_discriminative_peptides,
                 options.print_annotations,
                 options.write_xlsx,
-                output)
+                output,
+                options.inclusion_threshold)
     else:
         run_complete_pipeline(options)
 
