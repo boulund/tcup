@@ -657,7 +657,7 @@ def get_results_from_existing_db(sample_databases,
 
         if inclusion_threshold:
             disc_peps_per_rank, rank_counts, num_filtered = filter_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, inclusion_threshold)
-            logging.info("%s taxa were below reporting threshold (%s) and thus discarded from the results.", num_filtered, filter_output)
+            logging.info("%s taxa were below inclusion threshold (%s) and thus discarded from the results.", num_filtered, inclusion_threshold)
 
         print(sample_db.dbfile.center(60, "-"), file=outfile)
         print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, outfile)
