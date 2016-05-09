@@ -226,6 +226,7 @@ class Sample_DB_wrapper():
             self._create_new_sample_db(sample_db_filename)
 
         # Define NCBI Taxonomy rank hierachy
+        # Commented lines are not included in results printout.
         self.rank_hierarchy = ["superkingdom",
                 "kingdom",
                 "subkingdom",
@@ -243,17 +244,17 @@ class Sample_DB_wrapper():
                 "parvorder",
                 "superfamily",
                 "family",
-                "subfamily",
-                "tribe",
-                "subtribe",
+                #"subfamily",
+                #"tribe",
+                #"subtribe",
                 "genus",
-                "subgenus",
-                "species group",
-                "species subgroup",
+                #"subgenus",
+                #"species group",
+                #"species subgroup",
                 "species",
-                "subspecies",
-                "varietas",
-                "forma",
+                #"subspecies",
+                #"varietas",
+                #"forma",
                 "no rank"]
         self.ranks = {r: n for n, r in enumerate(self.rank_hierarchy)}
 
