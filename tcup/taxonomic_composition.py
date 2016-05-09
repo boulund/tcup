@@ -525,7 +525,7 @@ def filter_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, min
     Filter out low-abundance taxa from the results listing.
     """
 
-    filtered_disc_peps_per_rank = [taxon for taxon in disc_peps_per_rank if taxon[0] > 4]
+    filtered_disc_peps_per_rank = [taxon for taxon in disc_peps_per_rank if taxon[0] > min_count]
     filtered_rank_counts = defaultdict(int)
     for taxon in filtered_disc_peps_per_rank:
         filtered_rank_counts[taxon[2]] += taxon[0]
