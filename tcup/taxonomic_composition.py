@@ -136,7 +136,7 @@ def prepare_blacklist(blacklist, additional=""):
             for line in f:
                 blacklisted_seqs.add(line.strip())
     if additional:
-        blacklisted_seqs.add(set(additional.split(",")))
+        [blacklisted_seqs.add(header) for header in additional.split(",")]
     if blacklisted_seqs:
         logging.debug("Blacklisted sequences:\n%s", blacklisted_seqs)
     return blacklisted_seqs
