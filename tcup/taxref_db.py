@@ -261,7 +261,11 @@ def parse_refseqs(filename):
 
     with open(filename) as f:
         for line in f:
-            header, taxid = line.split()
+            try:
+                header, taxid = line.split()
+            except ValueError:
+                debug.error("Cannot parse line: %s", line)
+                exit()
             yield header, int(taxid)
 
 
