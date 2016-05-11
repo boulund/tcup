@@ -159,7 +159,10 @@ def parse_annotations(taxref_db, annotations_dir, pattern):
     """
     for gff_file in find_files(annotations_dir, pattern):
         for annotation_info in parse_gff(gff_file):
-            header = taxref_db.find_refseq_header(annotation_info[0])
+            try:
+                header = taxref_db.find_refseq_header(annotation_info[0])
+            except KeyError:
+                continue
             yield (header, *annotation_info[1:])
 
 
