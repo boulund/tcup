@@ -208,7 +208,7 @@ class NCBITaxa_mod(NCBITaxa):
 
         self.db.executemany("INSERT INTO refseqs VALUES (?, ?)", refseqs)
         self.db.execute("CREATE INDEX i_refseq_headers ON refseqs (header)")
-        self.db.exceute("CREATE INDEX i_refseq_taxids ON refseqs (taxid)")
+        self.db.execute("CREATE INDEX i_refseq_taxids ON refseqs (taxid)")
         self.db.commit()
     
     @lru_cache(maxsize=2)
