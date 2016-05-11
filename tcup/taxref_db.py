@@ -142,7 +142,7 @@ def parse_refseqs(filename):
             yield header, int(taxid)
 
 
-def prepare_db(dbfile, refseqs, taxonomy_ver, refseq_ver, comment):
+def prepare_db(dbfile, refseqs, refseq_ver, comment):
     """
     Prepare a reference DB based on the taxonomy from ETE3
     NCBITaxa, expanded with information on the nodes associated with reference
@@ -150,6 +150,7 @@ def prepare_db(dbfile, refseqs, taxonomy_ver, refseq_ver, comment):
     """
     
     n = NCBITaxa_mod(dbfile)
+    taxonomy_ver = time.strftime("%Y-%m-%d")
     n.expand_taxonomy_db(taxonomy_ver, refseq_ver, comment)
     for refseqs_file in refseqs:
         n.insert_refseqs_into_db(parse_refseqs(refseqs_file))
@@ -171,9 +172,6 @@ def parse_commandline(argv):
     parser.add_argument("--dbfile", type=str, dest="dbfile",
             default="taxref.sqlite3", 
             help="Filename to write the TCUP taxref database to [%(default)s].")
-    parser.add_argument("--db-taxonomy-ver", dest="taxonomy_ver", type=str,
-            default="",
-            help="Specify Taxonomy version, e.g. '2015-11-15'.")
     parser.add_argument("--db-refseq-ver", dest="refseq_ver", type=str,
             default="",
             help="Specify RefSeq version, e.g. '2015-11-15'.")
@@ -181,7 +179,7 @@ def parse_commandline(argv):
             default="",
             help="A database creation comment added to the SQLite3 database.")
     parser.add_argument("--loglevel", choices=["INFO", "DEBUG"], 
-            default="DEBUG", 
+            default="INFO", 
             help="Set logging level [%(default)s].")
     parser.add_argument("--logfile", 
             default=False,
@@ -210,7 +208,6 @@ def main():
 
     prepare_db(options.dbfile, 
             options.header_mappings, 
-            options.taxonomy_ver, 
             options.refseq_ver, 
             options.comment)
 
