@@ -149,6 +149,9 @@ def prepare_db(dbfile, refseqs, refseq_ver, comment):
     genome sequences (e.g. from NCBI RefSeq).
     """
     
+    if os.path.isfile(dbfile):
+        logging.error("File '%s' already exists!", dbfile)
+        exit()
     n = NCBITaxa_mod(dbfile)
     taxonomy_ver = time.strftime("%Y-%m-%d")
     n.expand_taxonomy_db(taxonomy_ver, refseq_ver, comment)
