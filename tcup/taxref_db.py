@@ -80,9 +80,14 @@ class NCBITaxa_mod(NCBITaxa):
         """
 
         self.db.executemany("INSERT INTO refseqs VALUES (?, ?)", refseqs)
+        self.db.commit()
+
+    def create_refseq_indexes(self):
+        """
+        Create indexes for refseq_headers and refseq_taxids columns.
+        """
         self.db.execute("CREATE INDEX i_refseq_headers ON refseqs (header)")
         self.db.execute("CREATE INDEX i_refseq_taxids ON refseqs (taxid)")
-        self.db.commit()
     
     @lru_cache(maxsize=2)
     def find_refseq_header(self, sequence_identifier):
@@ -157,6 +162,7 @@ def prepare_db(dbfile, refseqs, refseq_ver, comment):
     n.expand_taxonomy_db(taxonomy_ver, refseq_ver, comment)
     for refseqs_file in refseqs:
         n.insert_refseqs_into_db(parse_refseqs(refseqs_file))
+    n.create_refseq_indexes()
 
 
 def parse_commandline(argv):
