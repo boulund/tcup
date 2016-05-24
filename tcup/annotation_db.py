@@ -159,7 +159,10 @@ def parse_annotations(taxref_db, annotations_dir, pattern):
     """
     for gff_file in find_files(annotations_dir, pattern):
         for annotation_info in parse_gff(gff_file):
-            header = taxref_db.find_refseq_header(annotation_info[0])
+            try:
+                header = taxref_db.find_refseq_header(annotation_info[0])
+            except KeyError:
+                continue
             yield (header, *annotation_info[1:])
 
 
@@ -189,10 +192,17 @@ class Annotation_DB_wrapper():
         self.db.executemany("INSERT INTO annotations VALUES (?,?,?,?,?)", annotation_data)
         records = self.db.execute("SELECT Count(*) FROM annotations").fetchone()[0]
         logging.info("Inserted %s annotation records.", records)
+        self.db.commit()
+
+    def create_indexes(self):
+        """
+        Create indexes for start, end, and a double index start_end.
+        """
         self.db.execute("CREATE INDEX i_starts ON annotations(start)")
         self.db.execute("CREATE INDEX i_ends ON annotations(end)")
         self.db.execute("CREATE INDEX i_starts_ends ON annotations(start, end)")
-        self.db.commit()
+
+
 
 
 
@@ -207,6 +217,7 @@ def main():
     for annotations_dir in options.annotation_dirs:
         annotation_generator = parse_annotations(taxref_db, annotations_dir, options.glob_pattern_gff)
         annotation_db.insert_annotations(annotation_generator)
+    annotation_db.create_indexes()
 
 
 if __name__ == "__main__":

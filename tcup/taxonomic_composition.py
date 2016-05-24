@@ -169,6 +169,7 @@ def parse_blat_output(filename, min_identity, min_matches,
     hitlists = defaultdict(list)
     num_discarded = 0
     with open(filename) as blast8:
+        total_count = 0
         for total_count, hit in enumerate(map(str.split, blast8), start=1):
             if hit[1] in blacklisted_seqs:
                 logging.debug("Ignoring fragment %s hit to blacklisted %s", hit[0], hit[1])
@@ -184,6 +185,9 @@ def parse_blat_output(filename, min_identity, min_matches,
                 hitlists[hit[0]].append((hit[1], hit[2], hit[3], hit[8], hit[9]))
             else:
                 num_discarded += 1
+        if not total_count:
+            logging.error("Parsed no hits from %s, file empty? Exiting...", filename)
+            exit(2)
         logging.info("Parsed %s hits.", total_count)
         logging.info("Discarded %s hits based on primary criteria.", num_discarded)
         num_remain_pep = 0
