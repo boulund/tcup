@@ -50,5 +50,11 @@ The above command installs TCUP in *editable mode*, i.e. all the files
 remain in their original places, but are symlinked into your current Python
 environment.
 
+Begin by creating a new branch in which you will develop your changes::
+
+    hg branch my-feature-or-fixing-branch-name
+    [make modifications]
+    [commit modifications]
+
 When you are pleased with your improvements, you should present them by
 creating a `pull request`_ to the official repository.
