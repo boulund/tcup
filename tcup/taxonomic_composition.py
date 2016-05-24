@@ -686,7 +686,7 @@ def write_results_xlsx(disc_peps_per_rank, rank_counts, hits, results_filename, 
             try:
                 corrected_percentage = normalized_percentages[spname] * 100
             except (KeyError, TypeError):
-                corrected_percentage = float("NaN")
+                corrected_percentage = -0.0 
             worksheet_composition.write(row, 0, cum_count)
             worksheet_composition.write(row, 1, count)
             worksheet_composition.write(row, 2, percentage, percentage_format)
