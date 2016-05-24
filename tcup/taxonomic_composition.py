@@ -634,26 +634,42 @@ def print_annotation_hits(hits, outfile):
         print("{:<40}\t{:<10}\t{:<7}\t{:<45}\t{:<}".format(spname, disc_level, count, product, features), file=outfile)
 
 
-def write_results_xlsx(disc_peps_per_rank, rank_counts, hits, results_filename):
+def write_results_xlsx(disc_peps_per_rank, rank_counts, hits, results_filename, normalization_factors):
     """
     Write results to an Excel xlsx file.
     """
-
     workbook = xlsxwriter.Workbook(results_filename)
     worksheet_composition= workbook.add_worksheet("Taxonomic composition")
 
     percentage_format = workbook.add_format({"num_format": "0.00%"})
 
-    worksheet_composition.write(0, 0, "Cumulative")
-    worksheet_composition.write(0, 1, "Discriminative count")
-    worksheet_composition.write(0, 2, "Percentage")
-    worksheet_composition.write(0, 3, "Rank")
-    worksheet_composition.write(0, 4, "Description")
-    worksheet_composition.set_column(0, 0, 9.0)
-    worksheet_composition.set_column(1, 1, 17.0)
-    worksheet_composition.set_column(2, 2, 9.0)
-    worksheet_composition.set_column(3, 3, 11.0)
-    worksheet_composition.set_column(4, 4, 40.0)
+    if normalization_factors:
+        normalized_percentages = compute_corrected_and_normalized_cumulative_percentages(
+                disc_peps_per_rank, rank_counts, normalization_factors)
+        worksheet_composition.write(0, 0, "Cumulative")
+        worksheet_composition.write(0, 1, "Discriminative count")
+        worksheet_composition.write(0, 2, "Percentage")
+        worksheet_composition.write(0, 3, "% Normalized")
+        worksheet_composition.write(0, 4, "Rank")
+        worksheet_composition.write(0, 5, "Description")
+        worksheet_composition.set_column(0, 0, 9.0)
+        worksheet_composition.set_column(1, 1, 17.0)
+        worksheet_composition.set_column(2, 2, 9.0)
+        worksheet_composition.set_column(3, 3, 11.0)
+        worksheet_composition.set_column(4, 4, 11.0)
+        worksheet_composition.set_column(5, 5, 40.0)
+    else:
+        worksheet_composition.write(0, 0, "Cumulative")
+        worksheet_composition.write(0, 1, "Discriminative count")
+        worksheet_composition.write(0, 2, "Percentage")
+        worksheet_composition.write(0, 3, "Rank")
+        worksheet_composition.write(0, 4, "Description")
+        worksheet_composition.set_column(0, 0, 9.0)
+        worksheet_composition.set_column(1, 1, 17.0)
+        worksheet_composition.set_column(2, 2, 9.0)
+        worksheet_composition.set_column(3, 3, 11.0)
+        worksheet_composition.set_column(4, 4, 40.0)
+    
     row_adjustment = 0
     for row, data in enumerate(disc_peps_per_rank, start=1):
         row = row - row_adjustment
@@ -661,12 +677,25 @@ def write_results_xlsx(disc_peps_per_rank, rank_counts, hits, results_filename):
         if spname == "root" or spname =="cellular organisms":
             row_adjustment += 1
             continue
-        percentage = cum_count/rank_counts[rank]
-        worksheet_composition.write(row, 0, cum_count)
-        worksheet_composition.write(row, 1, count)
-        worksheet_composition.write(row, 2, percentage, percentage_format)
-        worksheet_composition.write(row, 3, rank)
-        worksheet_composition.write(row, 4, spname)
+        if normalization_factors:
+            percentage = cum_count/rank_counts[rank]
+            try:
+                corrected_percentage = normalized_percentages[spname] * 100
+            except (KeyError, TypeError):
+                corrected_percentage = float("NaN")
+            worksheet_composition.write(row, 0, cum_count)
+            worksheet_composition.write(row, 1, count)
+            worksheet_composition.write(row, 2, percentage, percentage_format)
+            worksheet_composition.write(row, 3, corrected_percentage, percentage_format)
+            worksheet_composition.write(row, 4, rank)
+            worksheet_composition.write(row, 5, spname)
+        else:
+            percentage = cum_count/rank_counts[rank]
+            worksheet_composition.write(row, 0, cum_count)
+            worksheet_composition.write(row, 1, count)
+            worksheet_composition.write(row, 2, percentage, percentage_format)
+            worksheet_composition.write(row, 3, rank)
+            worksheet_composition.write(row, 4, spname)
     try:
         worksheet_composition.autofilter(0, 0, row, 4)
     except NameError:
@@ -718,7 +747,7 @@ def get_results_from_existing_db(sample_databases,
             hits = sample_db.get_discriminative_hits_to_annotated_regions_from_rank(taxonomic_rank)
         if write_xlsx:
             xlsx_filename = write_xlsx
-            write_results_xlsx(disc_peps_per_rank, rank_counts, hits, xlsx_filename)
+            write_results_xlsx(disc_peps_per_rank, rank_counts, hits, xlsx_filename, normalization_factors)
         if print_annotations:
             print_annotation_hits(hits, outfile)
 
