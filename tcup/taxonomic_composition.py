@@ -73,7 +73,7 @@ def parse_commandline(argv):
             default=5.0,
             help="Maximum identity difference between highest and lowest hit for each peptide. Floating point between 0.0-100.0 [%(default)s].")
     parser.add_argument("--inclusion-threshold", dest="inclusion_threshold", metavar="c", type=int,
-            default=5,
+            default=0,
             help="Minimum number of discriminative peptides required to report taxa in output [%(default)s].")
     parser.add_argument("--write-xlsx", dest="write_xlsx", metavar="XLSX_FILE",
             default="",
