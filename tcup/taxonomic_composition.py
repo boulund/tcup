@@ -75,6 +75,9 @@ def parse_commandline(argv):
     parser.add_argument("--max-pid-diff", dest="max_pid_diff", type=float, metavar="D",
             default=5.0,
             help="Maximum identity difference between highest and lowest hit for each peptide. Floating point between 0.0-100.0 [%(default)s].")
+    parser.add_argument("--inclusion-threshold", dest="inclusion_threshold", metavar="c", type=int,
+            default=0,
+            help="Minimum number of discriminative peptides required to report taxa in output [%(default)s].")
     parser.add_argument("--write-xlsx", dest="write_xlsx", metavar="XLSX_FILE",
             default="",
             help="Write results to Excel file.")
@@ -136,7 +139,7 @@ def prepare_blacklist(blacklist, additional=""):
             for line in f:
                 blacklisted_seqs.add(line.strip())
     if additional:
-        blacklisted_seqs.add(set(additional.split(",")))
+        [blacklisted_seqs.add(header) for header in additional.split(",")]
     if blacklisted_seqs:
         logging.debug("Blacklisted sequences:\n%s", blacklisted_seqs)
     return blacklisted_seqs
@@ -230,6 +233,7 @@ class Sample_DB_wrapper():
             self._create_new_sample_db(sample_db_filename)
 
         # Define NCBI Taxonomy rank hierachy
+        # Commented lines are not included in results printout.
         self.rank_hierarchy = ["superkingdom",
                 "kingdom",
                 "subkingdom",
@@ -247,17 +251,17 @@ class Sample_DB_wrapper():
                 "parvorder",
                 "superfamily",
                 "family",
-                "subfamily",
-                "tribe",
-                "subtribe",
+                #"subfamily",
+                #"tribe",
+                #"subtribe",
                 "genus",
-                "subgenus",
-                "species group",
-                "species subgroup",
+                #"subgenus",
+                #"species group",
+                #"species subgroup",
                 "species",
-                "subspecies",
-                "varietas",
-                "forma",
+                #"subspecies",
+                #"varietas",
+                #"forma",
                 "no rank"]
         self.ranks = {r: n for n, r in enumerate(self.rank_hierarchy)}
 
@@ -523,7 +527,6 @@ class Sample_DB_wrapper():
         return result
 
 
-
 def parse_normalization_factors(filename):
     """
     Parse a tab separated file with per-species normalization factors.
@@ -575,6 +578,20 @@ def compute_corrected_and_normalized_cumulative_percentages(disc_peps_per_rank, 
     return normalized_percentages
 
 
+def filter_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, min_count):
+    """
+    Filter out low-abundance taxa from the results listing.
+    """
+
+    filtered_disc_peps_per_rank = [taxon for taxon in disc_peps_per_rank if taxon[0] > min_count]
+    filtered_rank_counts = defaultdict(int)
+    for taxon in filtered_disc_peps_per_rank:
+        filtered_rank_counts[taxon[2]] += taxon[0]
+    num_filtered = len(disc_peps_per_rank) - len(filtered_disc_peps_per_rank)
+
+    return filtered_disc_peps_per_rank, filtered_rank_counts, num_filtered
+
+
 def print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, normalization_factors, outfile):
     """
     Print sorted lists of discriminative peptide counts.
@@ -588,6 +605,7 @@ def print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, norm
         # and "root" that both have official rank 'no rank', but should not be
         # included anyway.
         pass
+    
 
     print("Discriminative peptides per spname".center(60, "-"), file=outfile)
 
@@ -733,7 +751,8 @@ def get_results_from_existing_db(sample_databases,
         print_annotations=False,
         write_xlsx="",
         normalization_factors="",
-        outfile=stdout):
+        outfile=stdout,
+        inclusion_threshold=0):
     """
     Retrieve and print results from existing sample database(s).
     """
@@ -743,6 +762,10 @@ def get_results_from_existing_db(sample_databases,
 
         disc_peps_per_rank = sample_db.get_discriminative_counts_from_rank(taxonomic_rank)
         rank_counts = sample_db.get_cumulative_rank_counts()
+
+        if inclusion_threshold:
+            disc_peps_per_rank, rank_counts, num_filtered = filter_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, inclusion_threshold)
+            logging.info("%s taxa were below inclusion threshold (%s) and thus discarded from the results.", num_filtered, inclusion_threshold)
 
         print(sample_db.dbfile.center(60, "-"), file=outfile)
         print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, normalization_factors, outfile)
@@ -804,7 +827,8 @@ def run_complete_pipeline(options):
                     options.print_annotations,
                     options.write_xlsx,
                     normalization_factors,
-                    output)
+                    output,
+                    options.inclusion_threshold)
 
 def main():
     """
@@ -830,7 +854,8 @@ def main():
                 options.print_annotations,
                 options.write_xlsx,
                 normalization_factors,
-                output)
+                output,
+                options.inclusion_threshold)
     else:
         run_complete_pipeline(options)
 
