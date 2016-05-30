@@ -58,6 +58,7 @@ Documentation
 
    introduction
    installation
+   tutorial
    preparing_databases
    running
    output
