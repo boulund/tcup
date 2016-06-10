@@ -43,9 +43,9 @@ def parse_args():
     parser.add_argument("SAMPLE", 
             help="FASTA file with peptides from tandem MS.")
     parser.add_argument("GENOME_DB",
-            help="Path to reference bacterial genome db (FASTA or blastdb format depending on OS).")
+            help="Reference bacterial genome db (FASTA or blastdb format depending on OS).")
     parser.add_argument("RESISTANCE_DB",
-            help="Path to antibiotic resistance gene db (FASTA or blastdb format depending on OS.")
+            help="Antibiotic resistance gene db (FASTA or blastdb format depending on OS).")
     
     taxonomic_composition_parser = parser.add_argument_group("Taxonomic composition")
     taxonomic_composition_parser.add_argument("-t", "--taxref-db", dest="taxref_db",
@@ -105,6 +105,20 @@ def run_blat(fasta, db, outfilename, query_type, target_type, high_sens=False):
     return blat_process
 
 
+def merge_blat_output_files(files, outfilename):
+    """
+    Concatenate two BLAT output files under Linux.
+    """
+    with open(outfilename, "w") as outfile:
+        with open(files[0]) as f1:
+            for line in f1:
+                outfile.write(line)
+        with open(files[1]) as f2:
+            for line in f2:
+                outfile.write(line)
+    os.remove(files[0])
+    os.remove(files[1])
+
 def run_ar_detection(blast8, resistance_db, outfilename):
     """
     Run TCUP antibiotic resistance detection.
@@ -134,8 +148,6 @@ def run_taxonomic_composition(blast8, taxref_db, annotation_db, outfilename):
     return tax_process
 
 
-
-
 def main():
     """
     Run the entire TCUP workflow.
@@ -152,9 +164,19 @@ def main():
     print("Running genome mapping...")
     print("Running antibiotic resistance gene mapping...")
     if platform.system().startswith("Linux"):
-        genome_mapping_process = run_blat(options.SAMPLE, 
-                options.GENOME_DB, 
-                genome_mapping_output, 
+        db_basename = os.path.basename(options.GENOME_DB)
+        db_path = os.path.split(options.GENOME_DB)[0]
+        split_db_names = [os.path.join(db_path, db_basename+".01.fasta"), 
+                          os.path.join(db_path, db_basename+".02.fasta")]
+        genome_mapping_process_1 = run_blat(options.SAMPLE, 
+                split_db_names[0], 
+                genome_mapping_output+"_tmp_01", 
+                query_type="prot",
+                target_type="dnax",
+                high_sens=True)
+        genome_mapping_process_2 = run_blat(options.SAMPLE, 
+                split_db_names[1],
+                genome_mapping_output+"_tmp_02", 
                 query_type="prot",
                 target_type="dnax",
                 high_sens=True)
@@ -184,9 +206,18 @@ def main():
     print("Antibiotic resistance detection (TCUP) completed.")
     logger.debug("Finished antibiotic resistance detection: %s", ar_process_out)
 
-    genome_mapping_out = genome_mapping_process.communicate()
-    print("Genome mapping completed.")
-    logger.debug("Finished genome mapping: %s", genome_mapping_out)
+    if platform.system().startswith("Linux"):
+        genome_mapping_out_1 = genome_mapping_process_1.communicate()
+        genome_mapping_out_2 = genome_mapping_process_2.communicate()
+        merge_blat_output_files([genome_mapping_output+"_tmp_01", 
+                genome_mapping_output+"_tmp_02"], genome_mapping_output)
+        print("Genome mapping completed.")
+        logger.debug("Finished genome mapping: %s", genome_mapping_out_1)
+        logger.debug("Finished genome mapping: %s", genome_mapping_out_2)
+    elif platform.system().startswith("Windows"):
+        genome_mapping_out = genome_mapping_process.communicate()
+        print("Genome mapping completed.")
+        logger.debug("Finished genome mapping: %s", genome_mapping_out)
 
     taxcomp_process = run_taxonomic_composition(genome_mapping_output, options.taxref_db, options.annotation_db, taxcomp_output)
     taxcomp_process_out = taxcomp_process.communicate()
