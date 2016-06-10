@@ -40,7 +40,7 @@ def parse_args():
     and run TCUP on alignment results. Fredrik Boulund 2016"""
 
     parser = argparse.ArgumentParser(description=desc)
-    parser.add_argument("FASTA", 
+    parser.add_argument("SAMPLE", 
             help="FASTA file with peptides from tandem MS.")
     parser.add_argument("GENOME_DB",
             help="Path to reference bacterial genome db (FASTA or blastdb format depending on OS).")
@@ -143,32 +143,32 @@ def main():
 
     options = parse_args()
 
-    genome_mapping_output = os.path.basename(options.FASTA)+".genomes.blast8"
-    ar_mapping_output = os.path.basename(options.FASTA)+".ar.blast8"
-    ar_output = os.path.basename(options.FASTA)+".antibiotic_resistance.txt"
-    taxcomp_output = os.path.basename(options.FASTA)+".taxonomic_composition"
+    genome_mapping_output = os.path.basename(options.SAMPLE)+".genomes.blast8"
+    ar_mapping_output = os.path.basename(options.SAMPLE)+".ar.blast8"
+    ar_output = os.path.basename(options.SAMPLE)+".antibiotic_resistance.txt"
+    taxcomp_output = os.path.basename(options.SAMPLE)+".taxonomic_composition"
 
 
     print("Running genome mapping...")
     print("Running antibiotic resistance gene mapping...")
     if platform.system().startswith("Linux"):
-        genome_mapping_process = run_blat(options.FASTA, 
+        genome_mapping_process = run_blat(options.SAMPLE, 
                 options.GENOME_DB, 
                 genome_mapping_output, 
                 query_type="prot",
                 target_type="dnax",
                 high_sens=True)
-        ar_mapping_process = run_blat(options.FASTA, 
+        ar_mapping_process = run_blat(options.SAMPLE, 
                 options.RESISTANCE_DB, 
                 ar_mapping_output,
                 query_type="prot",
                 target_type="prot")
     elif platform.system().startswith("Windows"):
-        genome_mapping_process = run_blast(options.FASTA, 
+        genome_mapping_process = run_blast(options.SAMPLE, 
                 options.GENOME_DB, 
                 genome_mapping_output,
                 task="tblastn")
-        ar_mapping_process = run_blast(options.FASTA, 
+        ar_mapping_process = run_blast(options.SAMPLE, 
                 options.RESISTANCE_DB, 
                 ar_mapping_output,
                 task="blastp")
