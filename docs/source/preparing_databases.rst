@@ -37,7 +37,7 @@ need to create the databases associated with the program you want to use.
 
 .. note::
     All examples of commands below are for Linux environments. Slight changes
-    to the displayed command might be required if working in a Windows environment.
+    to the displayed commands might be required if working in a Windows environment.
   
 
 Taxref DB
@@ -75,7 +75,7 @@ correct as possible.
 
 The simplest invocation to create a `taxref DB` looks like this::
    
-    taxref_db taxref_db  <HEADER_MAPPINGS>
+    taxref_db  <HEADER_MAPPINGS>
 
 where ``<HEADER_MAPPINGS>`` is the path to a `header_mappings` file as
 described above. The program allows multiple header mapping files to be
@@ -92,6 +92,10 @@ up taxids via NCBI E-utils. This example works on Linux only::
 
     $ grep ">" path/to/reference_genomes.fasta > reference_genome_headers.txt
     $ efetch_taxids reference_genome_headers.txt > header_mappings.tab
+
+It is also perfectly possible to manually create this file, or use some other
+method for pairing up the sequence headers to their respective taxid. Learn more
+about taxids on `NCBI Taxonomy`_. 
 
 .. _`NCBI Taxonomy`: http://www.ncbi.nlm.nih.gov/taxonomy
 

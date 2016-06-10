@@ -28,12 +28,10 @@ Detailed installation instructions are available in the online
 Download and install Anaconda Python 3.5. Then create a conda environment
 and install TCUP into the environment using the following commands::
 
-    $ wget https://bitbucket.org/chalmersmathbioinformatics/tcup/get/tip.tar.gz -O tcup.tar.gz
-    $ tar -xf tcup.tar.gz 
-    $ cd chalmersmathbioinformatics-*
-    $ conda env create -f conda_environment_Linux.yml
+    $ hg clone https://bitbucket.org/chalmersmathbioinformatics/tcup
+    $ conda env create -f ./tcup/conda_environment_Linux.yml
     $ source activate tcup
-    $ pip install .
+    $ pip install ./tcup/
 
 This will create a conda environment called ``tcup`` that contains 
 all the required dependencies, and the ``tcup`` package itself. 
