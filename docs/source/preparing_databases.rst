@@ -9,29 +9,35 @@ following reference data sources are required:
 
 * Reference genome sequences (FASTA) 
 * Reference genome annotations (GFF) 
-* NCBI Taxonomy taxdump (tab separated)  *[optional]*
 
-The information from these reference data sources is combined into two SQLite3
-databases that the taxonomic composition estimation program uses when
-estimating the taxonomic composition of a sample. These SQLite3 databases are
-referred to as `taxref DB` and `annotation DB` throughout this documentation.
-How to prepare these reference databases are described in `Taxref DB`_ and
-`Annotation DB`_.
+The headers of the genome sequences along with their taxonomic affiliations are
+combined with NCBI Taxonomy to form an SQLite3 database used to map genome sequences
+to the taxonomy, along with species names etc. The genome annotations are put into
+a separate SQLite3 database, used to retrieve annotation information if required.
+These SQLite3 databases are referred to as `taxref DB` and `annotation DB`
+throughout this documentation.  How to prepare these reference databases are
+described in `Taxref DB`_ and `Annotation DB`_.
 
 Additionally, for creating the database used for antibiotic resistance
-detection, the following reference data sources are required:
+detection, some kind of reference data sources for antibiotic resistance
+genes is required, we recommend something like the publicly available `ResFinder`_
+database. A version of the `ResFinder`_ database suitable for use with |name| is
+available from our `website`_.
 
-* Antibiotic resistance gene database 
+
+.. _ResFinder: https://cge.cbs.dtu.dk//services/ResFinder/
+.. _website: http://bioinformatics.math.chalmers.se/tcup/tutorial/databases/resfinder.zip
+
 
 Note that the detection of expressed antibiotic resistance proteins and the
-estimation of taxonomic composition are two independent programs. This means
-that if you only require one of them, you only need to create the databases
-associated with the program you want to use.
+estimation of taxonomic composition are actually two independent programs in
+the |name| package. This means that if you only require one of them, you only
+need to create the databases associated with the program you want to use.
 
 
 .. note::
-    All examples of commands below are for Linux environments. In Windows,
-    the program names end with ".exe", e.g. `taxonomic_composition.exe`.
+    All examples of commands below are for Linux environments. Slight changes
+    to the displayed command might be required if working in a Windows environment.
   
 
 Taxref DB
@@ -52,13 +58,14 @@ To create the `taxref DB`, a single user-created input file is required, called
 
         >gi|158333233|ref|NC_009925.1| Acaryochloris marina MBIC11017 chromosome, complete genome
 
-    the corresponding line in the `header_mappings` file should be::
+    the corresponding line in the `header_mappings` file should be (without the
+    extra spaces around the TAB character)::
         
         gi|158333233|ref|NC_009925.1| <TAB> 329726
  
     
 Header mappings can be created for NCBI RefSeq sequences using the
-`header_mappings` subprogram described in `Header mappings`_
+`efetch_taxids.py` subprogram described in `Header mappings`_
 below. It is also possible to create this mapping yourself, however you want
 to. The only important thing to note is to make sure that the first part of the
 FASTA header (up to the first space) is mapped to a valid NCBI taxid. As the
@@ -73,28 +80,18 @@ The simplest invocation to create a `taxref DB` looks like this::
 where ``<HEADER_MAPPINGS>`` is the path to a `header_mappings` file as
 described above. The program allows multiple header mapping files to be
 specified on the command line. The program will automatically download the most
-recent version of NCBI Taxonomy to build the database from.
+recent version of NCBI Taxonomy to build the database from. Run ``taxref_db
+--help`` for a listing of all the available options. 
 
 
 Header mappings
 ---------------
 A `header_mappings` file is required to create a `taxref DB`.  
-For NCBI RefSeq sequences, it is can be created like this::
+For NCBI RefSeq sequences, it can be created using ``efetch_taxids.py`` to look
+up taxids via NCBI E-utils. This example works on Linux only::
 
-    taxref_db  header_mappings  <REFSEQ_DIR>  <GI_TAXID_DUMP>
-
-where ``<REFSEQ_DIR>`` is the path to a directory containing NCBI RefSeq
-sequences in FASTA format (default having an ``*.fna`` extension), and
-``<GI_TAXID_DUMP>`` is the path to a tab separated file with two columns
-containing `gi` to `taxid` mappings.
-
-.. note::
-    Since early 2016, NCBI are phasing out the use of `gi` numbers. The
-    ``taxref_db`` program will automatically search for taxid mappings for a
-    given RefSeq sequence if the FASTA header contains a sequence accession
-    number, e.g. ``ref|NC_009925.1|``. However, expect this to be quite slow 
-    as it has to make queries for all accession numbers over the network.
-
+    $ grep ">" path/to/reference_genomes.fasta > reference_genome_headers.txt
+    $ efetch_taxids reference_genome_headers.txt > header_mappings.tab
 
 .. _`NCBI Taxonomy`: http://www.ncbi.nlm.nih.gov/taxonomy
 
@@ -119,18 +116,25 @@ multiple directories to be specified on the command line, and will recursively
 search subdirectories for GFF files as well.
 
 .. note::
-    Creating an `annotation DB` requires a pre-made `taxref DB`. Also note that
-    the program won't know what to do if it encounters GFF files for reference
-    genome sequences that were not included in the creation of the `taxref DB`. 
+    Creating an `annotation DB` requires that you have already completed a
+    `taxref DB`. Also note that the program won't do anything with GFF files
+    for reference genome sequences that were not included in the creation of
+    the `taxref DB`. 
     
 
 
 Antibiotic resistance DB
 ************************
-A modified version of `ResFinder`_ suitable for use with |name| is available
-for download `here`_. 
+To create your own antibiotic resistance gene database for use with |name|. Use
+the ``construct_resfinder_db.py`` program supplied with |name|.  A typical
+invocation might look like this::
 
-.. _ResFinder: https://cge.cbs.dtu.dk//services/ResFinder/
-.. _here: https://bioinformatics.math.chalmers.se/tcup/resfinder_20160304.zip
+    $ construct_resfinder_db.py --sequences <SEQUENCES> --notes <NOTES>
 
+where ``<SEQUENCES>`` is the path to a FASTA file with antibiotic resistance
+gene sequences. ``<NOTES>`` is the path to the ``notes.txt`` file included with
+the `ResFinder`_ distribution.  
 
+.. note:: 
+    A manually curated version of `ResFinder`_ suitable for use with |name| is
+    available for download from our `website`_. 
