@@ -54,6 +54,11 @@ peptides discriminative to *S. oralis*. Towards the end of the output, several
 spurious matches to organisms that were probably not in the sample are also
 visible.
 
+When viewing the output in Microsoft Excel, it is possible to use the filtering
+tools to filter e.g. the ``Rank`` column on *species* to display only the
+results on species level. This makes it very easy to study the results in
+detail, depending on whatever question is most interesting to you.
+
 .. note::
 
     The taxonomic composition output can also be written to a text file,
@@ -64,7 +69,7 @@ visible.
 Hits to annotated regions
 -------------------------
 Results in the *Hits to annotated regions* sheet are somewhat harder to 
-analyze than the results in the *Taxonomic composition* sheet. In this 
+interpret than the results in the *Taxonomic composition* sheet. In this 
 sheet, the output might look like this (shortened for brevity)::
 
     Species                                 Disc. level Count   Product                             Features
@@ -78,7 +83,6 @@ sheet, the output might look like this (shortened for brevity)::
     Streptococcus pneumoniae 70585          genus       35      elongation factor Tu                ID=cds1437;Name=YP_002740757.1;Parent=gene1488;Note=EF-Tu%3B promotes GTP-dependent binding of aminoacyl-tRNA to the A-site of ribosomes during protein biosynthesis%3B when the tRNA anticodon matches the mRNA codon%2C GTP hydrolysis results%3B the inactive EF-Tu-GDP leaves the ribosome and release of GDP is promoted by elongation factor Ts%3B many prokaryotes have two copies of the gene encoding EF-Tu;Dbxref=Genbank:YP_002740757.1,GeneID:7684439;gbkey=CDS;product=elongation factor Tu;protein_id=YP_002740757.1;transl_table=11
     Streptococcus pneumoniae A026           genus       35      elongation factor Tu                ID=cds1209;Name=YP_008730608.1;Parent=gene1336;Note=EF-Tu%3B promotes GTP-dependent binding of aminoacyl-tRNA to the A-site of ribosomes during protein biosynthesis%3B when the tRNA anticodon matches the mRNA codon%2C GTP hydrolysis results%3B the inactive EF-Tu-GDP leaves the ribosome and release of GDP is promoted by elongation factor Ts%3B many prokaryotes have two copies of the gene encoding EF-Tu;Dbxref=Genbank:YP_008730608.1,GeneID:17439784;gbkey=CDS;gene=tuf;product=elongation factor Tu;protein_id=YP_008730608.1;transl_table=11
     Streptococcus pneumoniae ATCC 700669    genus       35      elongation factor Tu                ID=cds1258;Name=YP_002511360.1;Parent=gene1394;Note=EF-Tu%3B promotes GTP-dependent binding of aminoacyl-tRNA to the A-site of ribosomes during protein biosynthesis%3B when the tRNA anticodon matches the mRNA codon%2C GTP hydrolysis results%3B the inactive EF-Tu-GDP leaves the ribosome and release of GDP is promoted by elongation factor Ts%3B many prokaryotes have two copies of the gene encoding EF-Tu;Dbxref=Genbank:YP_002511360.1,GeneID:7329336;gbkey=CDS;product=elongation factor Tu;protein_id=YP_002511360.1;transl_table=11
-
     [...]
 
 The columns, left to right, are:
@@ -102,9 +106,9 @@ bacteria are discriminative, and at what taxonomic level.
 
 .. note::
 
-    The *Hits to annotated regions* output can also be printed to STDOUT
-    using the --print-annotations command line options. However, this is
-    **not** recommended as it is very verbose.
+    The *Hits to annotated regions* output can also be printed to STDOUT using
+    the ``--print-annotations`` command line option. However, this is **not**
+    recommended as it is very verbose.
 
 
 Discriminative peptides
