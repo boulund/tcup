@@ -150,7 +150,8 @@ To run |name| on Linux, type the following command line (without linebreaks)::
         databases/reference_genomes
         databases/resfinder.fasta 
 
-Running |name| on the tutoral sample will take some time, depending on your computer.
+Running |name| on the tutoral sample will take some time, sometimes up to a
+couple of hours, depending on your computer's speed and amount of memory.
 After completing, |name| will produce the following output files::
 
     tcup_tutorial_sample.fasta.genomes.blast8
