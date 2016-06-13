@@ -1,9 +1,14 @@
 Tutorial
 ========
-In this tutorial we will run |name| on a sample containing an antibiotic
-resistant *E. coli*. The sample input file (peptides from bottom-up tandem mass
-spectrometry) is available for download from here:
+In this tutorial we will run |name| on a sample containing an *E. coli*
+resistant to antibiotics. The sample input file is available for download from here:
+
 http://bioinformatics.math.chalmers.se/tcup/tutorial/tcup_tutorial_sample.fasta.zip
+
+The input file contains 1500 peptides in FASTA format, randomly subsampled from
+a real tandem mass spectrometry sample, produced with Thermo Q Exactive, and
+searched using X!Tandem against a large peptide database consisting of
+bacterial proteins. 
 
 
 Preparations
