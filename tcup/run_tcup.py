@@ -43,10 +43,15 @@ def parse_args():
     parser.add_argument("SAMPLE", 
             help="FASTA file with peptides from tandem MS.")
     parser.add_argument("GENOME_DB",
-            help="Reference bacterial genome db (FASTA or blastdb format depending on OS).")
+            help="""Reference bacterial genome db (FASTA or blastdb format
+                depending on OS). Do not include file extension! Use only the
+                file's basename (e.g. "/path/to/reference_genomes" for a file called 
+                "reference_genomes.fasta")""")
     parser.add_argument("RESISTANCE_DB",
-            help="Antibiotic resistance gene db (FASTA or blastdb format depending on OS).")
-    
+            help="""Antibiotic resistance gene db (FASTA or blastdb format
+                depending on OS). Do not include file extension! Use only the
+                file's basename (e.g. "/path/to/resfinder" for a file called 
+                "resfinder.fasta")""")
     taxonomic_composition_parser = parser.add_argument_group("Taxonomic composition")
     taxonomic_composition_parser.add_argument("-t", "--taxref-db", dest="taxref_db",
             required=True,
