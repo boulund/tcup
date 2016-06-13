@@ -1,14 +1,13 @@
 Tutorial
 ========
-In this tutorial we will run |name| on a sample containing an *E. coli*
-resistant to antibiotics. The sample input file is available for download from here:
+In this tutorial we will run |name| on a sample input file that is available
+for download from here:
 
 http://bioinformatics.math.chalmers.se/tcup/tutorial/tcup_tutorial_sample.fasta.zip
 
 The input file contains 1500 peptides in FASTA format, randomly subsampled from
-a real tandem mass spectrometry sample, produced with Thermo Q Exactive, and
-searched using X!Tandem against a large peptide database consisting of
-bacterial proteins. 
+a real tandem mass spectrometry sample, sarched using X!Tandem against a large
+peptide database of bacterial proteins. 
 
 
 Preparations
@@ -177,9 +176,11 @@ Analysis of the results
     optimized for use with BLAT at this time. The use of BLAST together with
     TCUP to determine taxonomic composition or expressed antibiotic resistance
     peptides is currently not recommended. Thus, if you are running TCUP on
-    Windows, keep in mind that the results likely will contain a high number of
-    false positive assignments, both for taxonomic affiliation and antibiotic
-    resistance detection.
+    Windows, keep in mind that the results likely will contain a higher number
+    of false positive assignments, both for taxonomic affiliation and
+    antibiotic resistance detection.
+
+Complete details on how to interpret |name| output is available in :doc:`output`.
 
 Taxonomic composition
 ---------------------
@@ -187,7 +188,7 @@ First off, let's have a look at the taxonomic composition of the sample. The
 taxonomic composition estimation is presented in two formats: plain text and 
 as an Excel spreadsheet. They both contain the same information regarding the 
 taxonomic composition estimation of the sample, but the Excel file also includes 
-a sheet with information on hits to annotated regions of the reference sequences.
+a sheet with information on hits to annotated regions of the reference sequences. 
 
 The table in the first sheet of ``tcup_tutorial_sample.fasta.taxonomic_composition.xslx``
 shows columns containing::
