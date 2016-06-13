@@ -150,6 +150,7 @@ To run |name| on Linux, type the following command line (without linebreaks)::
         databases/reference_genomes
         databases/resfinder.fasta 
 
+Running |name| on the tutoral sample will take some time, depending on your computer.
 After completing, |name| will produce the following output files::
 
     tcup_tutorial_sample.fasta.genomes.blast8
@@ -158,6 +159,9 @@ After completing, |name| will produce the following output files::
     tcup_tutorial_sample.fasta.taxonomic_composition.txt
     tcup_tutorial_sample.fasta.taxonomic_composition.xslx
 
+The mapping output files ``*.blast8*`` contain the raw mapping results in BLAST
+tabular format (BLAST actually calls this blast6). The ``*.txt`` and
+``*.xlslx`` files contain the output from |name|. 
 
 .. note::
 
