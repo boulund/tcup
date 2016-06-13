@@ -76,7 +76,7 @@ def run_blast(fasta, db, outfilename, task="blastx"):
     Assumes running on Windows.
     """
 
-    cmd_string = "{task}.exe -query {query} -db {db} -out {outfile} -outfmt 6"
+    cmd_string = "{task}.exe -query {query} -db {db} -perc_identity 90 -out {outfile} -outfmt 6"
     blast_cmd = shlex.split(cmd_string.format(task=task, 
         query=fasta,
         db=db,
