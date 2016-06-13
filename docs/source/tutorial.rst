@@ -171,10 +171,10 @@ Analysis of the results
     NCBI BLAST produces more false positives than BLAT, and TCUP has only been
     optimized for use with BLAT at this time. The use of BLAST together with
     TCUP to determine taxonomic composition or expressed antibiotic resistance
-    peptides is not recommended. Thus, if you are running TCUP on Windows, keep
-    in mind that the results likely will contain a high number of false
-    positive assignments, both for taxonomic affiliation and antibiotic
-    resistance detection. 
+    peptides is currently not recommended. Thus, if you are running TCUP on
+    Windows, keep in mind that the results likely will contain a high number of
+    false positive assignments, both for taxonomic affiliation and antibiotic
+    resistance detection.
 
 Taxonomic composition
 ---------------------

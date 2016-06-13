@@ -52,12 +52,17 @@ BLAST
 We do not recommend using BLAST, but if no other option is available, it can be done
 using the following settings for taxonomic composition estimation::
 
-    tblastn.exe -query <query> -db <db> -out <outfile> -outfmt 6
+    tblastn.exe -query <query> -db <db> -proc_identity 90 -out <outfile> -outfmt 6
 
 For antibiotic resistance detection, we need to do protein-to-protein mapping using
 the following command line::
 
-    blastp.exe -query <query> -db <db> -out <outfile> -outfmt 6
+    blastp.exe -query <query> -db <db> -proc_identity 90 -out <outfile> -outfmt 6
+
+.. note::
+
+    |name| has not yet been optimized for use with BLAST, and the results might
+    be unreliable if BLAST was used for peptide to genome mapping. 
 
 
 Taxonomic composition
