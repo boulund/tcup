@@ -3,7 +3,7 @@ Tutorial
 In this tutorial we will run |name| on a sample input file that is available
 for download from here:
 
-http://bioinformatics.math.chalmers.se/tcup/tutorial/tcup_tutorial_sample.fasta.zip
+http://bioinformatics.math.chalmers.se/tcup/tutorial/tcup_tutorial_sample.zip
 
 The input file contains 1500 peptides in FASTA format, randomly subsampled from
 a real tandem mass spectrometry sample, sarched using X!Tandem against a large
