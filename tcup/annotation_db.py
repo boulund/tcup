@@ -54,10 +54,19 @@ def parse_args(argv):
     parser.add_argument("--glob-pattern-gff", dest="glob_pattern_gff",
             default="*.gff",
             help="Glob pattern for gff files [%(default)s].")
-    parser.add_argument("--loglevel", choices=["INFO", "DEBUG"], 
+
+    update_db = parser.add_argument_group("update/extend existing annotation DB")
+    update_db.add_argument("--add-annotations",
+            action="store_true",
+            default=False,
+            help="""Add additional annotations to existing annotation DB.
+                WARNING: Will add to existing annotation DB specified by --db-filename.""")
+
+    other = parser.add_argument_group("other")
+    other.add_argument("--loglevel", choices=["INFO", "DEBUG"], 
             default="DEBUG", 
             help="Set logging level [%(default)s].")
-    parser.add_argument("--logfile", 
+    other.add_argument("--logfile", 
             default=False,
             help="Log to file instead of STDOUT.")
 
