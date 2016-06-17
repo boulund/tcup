@@ -295,12 +295,12 @@ class Sample_DB_wrapper():
         self.db.execute("CREATE TABLE cumulative(taxid INT PRIMARY KEY, count INT DEFAULT 0)")
         self.db.execute("CREATE TABLE rank_counts(rank TEXT PRIMARY KEY, count INT DEFAULT 0)")
 
-
-    def attach_taxref_db(self, taxref_db_file):
+    def attach_taxref_db(self, taxref_db_file, pre_existing=False):
         self.db.execute("ATTACH ? as taxref", (taxref_db_file, ))
         logging.debug("Attached taxref DB")
-        self.db.execute("INSERT OR IGNORE INTO cumulative (taxid) SELECT taxid from taxref.species")
-        self.db.commit()
+        if not pre_existing:
+            self.db.execute("INSERT OR IGNORE INTO cumulative (taxid) SELECT taxid from taxref.species")
+            self.db.commit()
     
     def attach_annotation_db(self, annotation_db_file):
         self.db.execute("ATTACH ? as annotationdb", (annotation_db_file, ))
@@ -857,7 +857,7 @@ def main():
     if options.pre_existing:
         sample_databases = [Sample_DB_wrapper(filename, create_new=False) for filename in options.FILE]
         for sample_db in sample_databases:
-            sample_db.attach_taxref_db(options.taxref_db)
+            sample_db.attach_taxref_db(options.taxref_db, pre_existing=True)
         if options.output:
             output = open(options.output, 'w')
         else:
