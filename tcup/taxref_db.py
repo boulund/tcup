@@ -42,6 +42,49 @@ except ImportError:
     from utils import read_fasta, find_files, grouper, existing_file
 
 
+def parse_commandline(argv):
+    """
+    Parse commandline arguments.
+    """
+
+    desc = """Prepare a TCUP "taxref" taxonomy reference database. 
+    Uses header->taxid mappings to create a ready-to-use
+    TCUP taxonomy reference database (taxref) to be filled in with
+    sample data.  Fredrik Boulund (c) 2016."""
+    parser = argparse.ArgumentParser(description=desc)
+
+    parser.add_argument("header_mappings", nargs="+",
+            help="Path(s) to or filename(s) of tab-delimited text file with header->taxid mappings")
+    parser.add_argument("--dbfile", type=str, dest="dbfile",
+            default="taxref.sqlite3", 
+            help="Filename to write the TCUP taxref database to [%(default)s].")
+    parser.add_argument("--db-refseq-ver", dest="refseq_ver", type=str,
+            default="",
+            help="Specify RefSeq version, e.g. '2015-11-15'.")
+    parser.add_argument("--db-comment", dest="comment", type=str,
+            default="",
+            help="A database creation comment added to the SQLite3 database.")
+    parser.add_argument("--loglevel", choices=["INFO", "DEBUG"], 
+            default="INFO", 
+            help="Set logging level [%(default)s].")
+    parser.add_argument("--logfile", 
+            default=False,
+            help="Log to file instead of STDOUT.")
+
+    if len(argv) < 3:
+        parser.print_help()
+        exit()
+
+    options = parser.parse_args()
+    
+    if options.logfile:
+        logging.basicConfig(level=options.loglevel, filename=options.logfile)
+    else:
+        logging.basicConfig(level=options.loglevel)
+
+    return options
+
+
 class NCBITaxa_mod(NCBITaxa):
     """
     Extended/improved version of ete3.NCBITaxa.
@@ -180,50 +223,6 @@ def prepare_db(dbfile, refseqs, refseq_ver, comment):
     for refseqs_file in refseqs:
         n.insert_refseqs_into_db(parse_refseqs(refseqs_file))
     n.create_refseq_indexes()
-
-
-def parse_commandline(argv):
-    """
-    Parse commandline arguments.
-    """
-
-    desc = """Prepare a TCUP "taxref" taxonomy reference database. 
-    Uses header->taxid mappings to create a ready-to-use
-    TCUP taxonomy reference database (taxref) to be filled in with
-    sample data.  Fredrik Boulund (c) 2016."""
-    parser = argparse.ArgumentParser(description=desc)
-
-    parser.add_argument("header_mappings", nargs="+",
-            help="Path(s) to or filename(s) of tab-delimited text file with header->taxid mappings")
-    parser.add_argument("--dbfile", type=str, dest="dbfile",
-            default="taxref.sqlite3", 
-            help="Filename to write the TCUP taxref database to [%(default)s].")
-    parser.add_argument("--db-refseq-ver", dest="refseq_ver", type=str,
-            default="",
-            help="Specify RefSeq version, e.g. '2015-11-15'.")
-    parser.add_argument("--db-comment", dest="comment", type=str,
-            default="",
-            help="A database creation comment added to the SQLite3 database.")
-    parser.add_argument("--loglevel", choices=["INFO", "DEBUG"], 
-            default="INFO", 
-            help="Set logging level [%(default)s].")
-    parser.add_argument("--logfile", 
-            default=False,
-            help="Log to file instead of STDOUT.")
-
-    if len(argv) < 3:
-        parser.print_help()
-        exit()
-
-    options = parser.parse_args()
-    
-    if options.logfile:
-        logging.basicConfig(level=options.loglevel, filename=options.logfile)
-    else:
-        logging.basicConfig(level=options.loglevel)
-
-    return options
-
 
 
 def main():
