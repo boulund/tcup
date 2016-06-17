@@ -64,14 +64,24 @@ def parse_commandline(argv):
     parser.add_argument("--db-comment", dest="comment", type=str,
             default="",
             help="A database creation comment added to the SQLite3 database.")
-    parser.add_argument("--loglevel", choices=["INFO", "DEBUG"], 
+
+    update_db = parser.add_argument_group("update/extend existing taxref DB")
+    update_db.add_argument("--add-sequences",
+            action="store_true",
+            default=False,
+            help="""Read additional sequences from header_mappings to add to 
+                existing taxref DB. 
+                WARNING: Will overwrite existing taxref DB specified by --dbfile.""")
+
+    other = parser.add_argument_group("other")
+    other.add_argument("--loglevel", choices=["INFO", "DEBUG"], 
             default="INFO", 
             help="Set logging level [%(default)s].")
-    parser.add_argument("--logfile", 
+    other.add_argument("--logfile", 
             default=False,
             help="Log to file instead of STDOUT.")
 
-    if len(argv) < 3:
+    if len(argv) < 2:
         parser.print_help()
         exit()
 
