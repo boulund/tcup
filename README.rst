@@ -17,7 +17,7 @@ About
 *****
 :Authors: Fredrik Boulund
 :Contact: fredrik.boulund@chalmers.se
-:License: BSD
+:License: ISC
 
 
 Installation 

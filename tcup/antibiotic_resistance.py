@@ -1,6 +1,23 @@
 #!/usr/bin/env python3.5
-# Parse AR hits from BLAT blast8
-# Fredrik Boulund 2016
+# encoding: utf-8
+#
+#  ---------------------------------------------------------- 
+#  This file is part of TCUP: http://tcup.readthedocs.org
+#  ---------------------------------------------------------- 
+#
+#  Copyright (c) 2016, Fredrik Boulund <fredrik.boulund@chalmers.se>
+#  
+#  Permission to use, copy, modify, and/or distribute this software for any
+#  purpose with or without fee is hereby granted, provided that the above
+#  copyright notice and this permission notice appear in all copies.
+#  
+#  THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+#  REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+#  FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+#  INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+#  LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+#  OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+#  PERFORMANCE OF THIS SOFTWARE.
 
 from sys import argv, exit, stdout
 from collections import defaultdict, Counter
@@ -101,7 +118,7 @@ def parse_blat_output(filename, min_identity=100, keep_going=False, max_pid_diff
         except UnboundLocalError:
             if not keep_going:
                 logging.error("Parsed no hits from %s; file is empty? Exiting...", filename)
-                exit()
+                exit(2)
             else:
                 logging.warning("Parsed no hits from %s: file is empty? Continuing because --keep-going is set.", filename)
         num_remain_pep = 0

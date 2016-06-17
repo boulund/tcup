@@ -1,7 +1,23 @@
 #!/usr/bin/env python3.5
 # encoding: utf-8
-# Prepare an annotation database
-# (c) Fredrik Boulund 2015
+#
+#  ---------------------------------------------------------- 
+#  This file is part of TCUP: http://tcup.readthedocs.org
+#  ---------------------------------------------------------- 
+#
+#  Copyright (c) 2016, Fredrik Boulund <fredrik.boulund@chalmers.se>
+#  
+#  Permission to use, copy, modify, and/or distribute this software for any
+#  purpose with or without fee is hereby granted, provided that the above
+#  copyright notice and this permission notice appear in all copies.
+#  
+#  THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+#  REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+#  FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+#  INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+#  LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+#  OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+#  PERFORMANCE OF THIS SOFTWARE.
 
 import sys
 import os
@@ -159,7 +175,10 @@ def parse_annotations(taxref_db, annotations_dir, pattern):
     """
     for gff_file in find_files(annotations_dir, pattern):
         for annotation_info in parse_gff(gff_file):
-            header = taxref_db.find_refseq_header(annotation_info[0])
+            try:
+                header = taxref_db.find_refseq_header(annotation_info[0])
+            except KeyError:
+                continue
             yield (header, *annotation_info[1:])
 
 
@@ -189,10 +208,17 @@ class Annotation_DB_wrapper():
         self.db.executemany("INSERT INTO annotations VALUES (?,?,?,?,?)", annotation_data)
         records = self.db.execute("SELECT Count(*) FROM annotations").fetchone()[0]
         logging.info("Inserted %s annotation records.", records)
+        self.db.commit()
+
+    def create_indexes(self):
+        """
+        Create indexes for start, end, and a double index start_end.
+        """
         self.db.execute("CREATE INDEX i_starts ON annotations(start)")
         self.db.execute("CREATE INDEX i_ends ON annotations(end)")
         self.db.execute("CREATE INDEX i_starts_ends ON annotations(start, end)")
-        self.db.commit()
+
+
 
 
 
@@ -207,6 +233,7 @@ def main():
     for annotations_dir in options.annotation_dirs:
         annotation_generator = parse_annotations(taxref_db, annotations_dir, options.glob_pattern_gff)
         annotation_db.insert_annotations(annotation_generator)
+    annotation_db.create_indexes()
 
 
 if __name__ == "__main__":

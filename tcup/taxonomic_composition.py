@@ -1,7 +1,23 @@
 #!/usr/bin/env python3.5
 # encoding: utf-8
-# Fredrik Boulund (c) 2015
-# TCUP
+#
+#  ---------------------------------------------------------- 
+#  This file is part of TCUP: http://tcup.readthedocs.org
+#  ---------------------------------------------------------- 
+#
+#  Copyright (c) 2016, Fredrik Boulund <fredrik.boulund@chalmers.se>
+#  
+#  Permission to use, copy, modify, and/or distribute this software for any
+#  purpose with or without fee is hereby granted, provided that the above
+#  copyright notice and this permission notice appear in all copies.
+#  
+#  THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+#  REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+#  FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+#  INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+#  LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+#  OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+#  PERFORMANCE OF THIS SOFTWARE.
 
 from sys import argv, exit, stdout
 from collections import defaultdict, OrderedDict, Counter
@@ -53,6 +69,9 @@ def parse_commandline(argv):
             default=None,
             type=existing_file,
             help="File with sequence headers to blacklist (i.e. to ignore when parsing blast8 output).")
+    parser.add_argument("--species-normalization", metavar="FILE", dest="species_normalization",
+            default="",
+            help="Tab separated file with species normalization factors. Using your own will overwrite built-in values.")
     parser.add_argument("--write-discriminative-peptides", metavar="FILE",
             dest="write_discriminative_peptides", 
             default=False,
@@ -169,6 +188,7 @@ def parse_blat_output(filename, min_identity, min_matches,
     hitlists = defaultdict(list)
     num_discarded = 0
     with open(filename) as blast8:
+        total_count = 0
         for total_count, hit in enumerate(map(str.split, blast8), start=1):
             if hit[1] in blacklisted_seqs:
                 logging.debug("Ignoring fragment %s hit to blacklisted %s", hit[0], hit[1])
@@ -184,6 +204,9 @@ def parse_blat_output(filename, min_identity, min_matches,
                 hitlists[hit[0]].append((hit[1], hit[2], hit[3], hit[8], hit[9]))
             else:
                 num_discarded += 1
+        if not total_count:
+            logging.error("Parsed no hits from %s, file empty? Exiting...", filename)
+            exit(2)
         logging.info("Parsed %s hits.", total_count)
         logging.info("Discarded %s hits based on primary criteria.", num_discarded)
         num_remain_pep = 0
@@ -520,6 +543,57 @@ class Sample_DB_wrapper():
         return result
 
 
+def parse_normalization_factors(filename):
+    """
+    Parse a tab separated file with per-species normalization factors.
+
+    Returns a dictionary with per-species normalization factors.
+    """
+    normalization_factors = {}
+
+    # TODO: The following if-statement is in place to enable
+    # future development of TCUP where a file with default 
+    # normalization factors can automatically be loaded if
+    # the user does not specify one. 
+    if not filename:
+        logging.debug("Not parsing normalization factors.")
+        return normalization_factors  # TODO: Remove this return statement in the future
+        # Import and read the default normalization factor file 
+        # included in the TCUP package distribution.
+        import pkg_resources
+        filename = pkg_resources.resource_filename("tcup", "species_normalization.tab")
+    logging.debug("Parsing species normalization factors from %s", filename)
+    with open(filename) as f:
+        for species_line in f:
+            try:
+                species, factor = species_line.strip().split("\t")
+                normalization_factors[species] = float(factor)
+            except ValueError:
+                logging.error("Could not parse %s. The offending line was:\n%s", filename, species_line)
+                logging.warning("Continuing without normalization factors.")
+    logging.debug("Available normalization factors: %s", normalization_factors)
+    return normalization_factors
+
+
+def compute_corrected_and_normalized_cumulative_percentages(disc_peps_per_rank, rank_counts, normalization_factors):
+    """
+    Compute corrected and normalized cumulative percentages for each species.
+
+    Note that this only includes species with specified normalization factors!
+    """
+
+    percentages = {spname: (cum_count/rank_counts[rank], rank) for cum_count, count, rank, spname in disc_peps_per_rank}
+    pre_normalized_corrected_percentages = {}
+    for spname, percentage_rank in percentages.items():
+        percentage, rank = percentage_rank
+        if spname in normalization_factors:
+            pre_normalized_corrected_percentages[spname] = percentage/normalization_factors[spname]
+    pre_normalization_sum = sum(p for p in pre_normalized_corrected_percentages.values())
+    normalized_percentages = {spname: p/pre_normalization_sum for spname, p in pre_normalized_corrected_percentages.items()}
+
+    return normalized_percentages
+
+
 def filter_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, min_count):
     """
     Filter out low-abundance taxa from the results listing.
@@ -533,8 +607,8 @@ def filter_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, min
 
     return filtered_disc_peps_per_rank, filtered_rank_counts, num_filtered
 
-    
-def print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, outfile):
+
+def print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, normalization_factors, outfile):
     """
     Print sorted lists of discriminative peptide counts.
     """
@@ -550,12 +624,31 @@ def print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, outf
     
 
     print("Discriminative peptides per spname".center(60, "-"), file=outfile)
-    print("{:<10} {:<6} {:>6} {:<20} {:<40}".format("Cumulative", "Count", "%", "Rank", "Description"), file=outfile)
+
+    if normalization_factors:
+        normalized_percentages = compute_corrected_and_normalized_cumulative_percentages(
+                disc_peps_per_rank, rank_counts, normalization_factors)
+        print("{:<10} {:<6} {:>6} {:>7} {:<20} {:<40}".format(
+            "Cumulative", "Count", "%", "% corr.", "Rank", "Description"), file=outfile)
+    else:
+        print("{:<10} {:<6} {:>6} {:<20} {:<40}".format(
+            "Cumulative", "Count", "%", "Rank", "Description"), file=outfile)
+
     for cum_count, count, rank, spname in disc_peps_per_rank:
         if spname in ("root", "cellular organisms"):
             continue
         percentage = cum_count/rank_counts[rank] * 100
-        print("{:<10} {:<6} {:>6.2f} {:<20} {:<40}".format(cum_count, count, percentage, rank, spname), file=outfile)
+        if normalization_factors:
+            try:
+                corrected_percentage = normalized_percentages[spname] * 100 
+            except (KeyError, TypeError):
+                corrected_percentage = float("NaN")
+            print("{:<10} {:<6} {:>6.2f} {:>7.2f} {:<20} {:<40}".format(
+                cum_count, count, percentage, corrected_percentage, rank, spname), file=outfile)
+        else:
+            print("{:<10} {:<6} {:>6.2f} {:<20} {:<40}".format(
+                cum_count, count, percentage, rank, spname), file=outfile)
+
 
 
 def write_discriminative_peptides(discriminative, outfilename):
@@ -579,26 +672,42 @@ def print_annotation_hits(hits, outfile):
         print("{:<40}\t{:<10}\t{:<7}\t{:<45}\t{:<}".format(spname, disc_level, count, product, features), file=outfile)
 
 
-def write_results_xlsx(disc_peps_per_rank, rank_counts, hits, results_filename):
+def write_results_xlsx(disc_peps_per_rank, rank_counts, hits, results_filename, normalization_factors):
     """
     Write results to an Excel xlsx file.
     """
-
     workbook = xlsxwriter.Workbook(results_filename)
     worksheet_composition= workbook.add_worksheet("Taxonomic composition")
 
     percentage_format = workbook.add_format({"num_format": "0.00%"})
 
-    worksheet_composition.write(0, 0, "Cumulative")
-    worksheet_composition.write(0, 1, "Discriminative count")
-    worksheet_composition.write(0, 2, "Percentage")
-    worksheet_composition.write(0, 3, "Rank")
-    worksheet_composition.write(0, 4, "Description")
-    worksheet_composition.set_column(0, 0, 9.0)
-    worksheet_composition.set_column(1, 1, 17.0)
-    worksheet_composition.set_column(2, 2, 9.0)
-    worksheet_composition.set_column(3, 3, 11.0)
-    worksheet_composition.set_column(4, 4, 40.0)
+    if normalization_factors:
+        normalized_percentages = compute_corrected_and_normalized_cumulative_percentages(
+                disc_peps_per_rank, rank_counts, normalization_factors)
+        worksheet_composition.write(0, 0, "Cumulative")
+        worksheet_composition.write(0, 1, "Discriminative count")
+        worksheet_composition.write(0, 2, "Percentage")
+        worksheet_composition.write(0, 3, "% Normalized")
+        worksheet_composition.write(0, 4, "Rank")
+        worksheet_composition.write(0, 5, "Description")
+        worksheet_composition.set_column(0, 0, 9.0)
+        worksheet_composition.set_column(1, 1, 17.0)
+        worksheet_composition.set_column(2, 2, 9.0)
+        worksheet_composition.set_column(3, 3, 11.0)
+        worksheet_composition.set_column(4, 4, 11.0)
+        worksheet_composition.set_column(5, 5, 40.0)
+    else:
+        worksheet_composition.write(0, 0, "Cumulative")
+        worksheet_composition.write(0, 1, "Discriminative count")
+        worksheet_composition.write(0, 2, "Percentage")
+        worksheet_composition.write(0, 3, "Rank")
+        worksheet_composition.write(0, 4, "Description")
+        worksheet_composition.set_column(0, 0, 9.0)
+        worksheet_composition.set_column(1, 1, 17.0)
+        worksheet_composition.set_column(2, 2, 9.0)
+        worksheet_composition.set_column(3, 3, 11.0)
+        worksheet_composition.set_column(4, 4, 40.0)
+    
     row_adjustment = 0
     for row, data in enumerate(disc_peps_per_rank, start=1):
         row = row - row_adjustment
@@ -606,12 +715,25 @@ def write_results_xlsx(disc_peps_per_rank, rank_counts, hits, results_filename):
         if spname == "root" or spname =="cellular organisms":
             row_adjustment += 1
             continue
-        percentage = cum_count/rank_counts[rank]
-        worksheet_composition.write(row, 0, cum_count)
-        worksheet_composition.write(row, 1, count)
-        worksheet_composition.write(row, 2, percentage, percentage_format)
-        worksheet_composition.write(row, 3, rank)
-        worksheet_composition.write(row, 4, spname)
+        if normalization_factors:
+            percentage = cum_count/rank_counts[rank]
+            try:
+                corrected_percentage = normalized_percentages[spname] * 100
+            except (KeyError, TypeError):
+                corrected_percentage = -0.0 
+            worksheet_composition.write(row, 0, cum_count)
+            worksheet_composition.write(row, 1, count)
+            worksheet_composition.write(row, 2, percentage, percentage_format)
+            worksheet_composition.write(row, 3, corrected_percentage, percentage_format)
+            worksheet_composition.write(row, 4, rank)
+            worksheet_composition.write(row, 5, spname)
+        else:
+            percentage = cum_count/rank_counts[rank]
+            worksheet_composition.write(row, 0, cum_count)
+            worksheet_composition.write(row, 1, count)
+            worksheet_composition.write(row, 2, percentage, percentage_format)
+            worksheet_composition.write(row, 3, rank)
+            worksheet_composition.write(row, 4, spname)
     try:
         worksheet_composition.autofilter(0, 0, row, 4)
     except NameError:
@@ -644,10 +766,11 @@ def get_results_from_existing_db(sample_databases,
         discpeps_file=False,
         print_annotations=False,
         write_xlsx="",
+        normalization_factors="",
         outfile=stdout,
-        inclusion_threshold=5):
+        inclusion_threshold=0):
     """
-    Retrieve results from existing sample database(s).
+    Retrieve and print results from existing sample database(s).
     """
 
     for sample_db in sample_databases:
@@ -661,13 +784,13 @@ def get_results_from_existing_db(sample_databases,
             logging.info("%s taxa were below inclusion threshold (%s) and thus discarded from the results.", num_filtered, inclusion_threshold)
 
         print(sample_db.dbfile.center(60, "-"), file=outfile)
-        print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, outfile)
+        print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, normalization_factors, outfile)
 
         if write_xlsx or print_annotations:
             hits = sample_db.get_discriminative_hits_to_annotated_regions_from_rank(taxonomic_rank)
         if write_xlsx:
             xlsx_filename = write_xlsx
-            write_results_xlsx(disc_peps_per_rank, rank_counts, hits, xlsx_filename)
+            write_results_xlsx(disc_peps_per_rank, rank_counts, hits, xlsx_filename, normalization_factors)
         if print_annotations:
             print_annotation_hits(hits, outfile)
 
@@ -681,6 +804,7 @@ def run_complete_pipeline(options):
     The complete pipeline logic.
     """
     blacklisted_seqs = prepare_blacklist(options.blacklist, options.leave_out)
+    normalization_factors = parse_normalization_factors(options.species_normalization)
 
     for blat_file in options.FILE:
         if blat_file.endswith(".sqlite3"):
@@ -718,6 +842,7 @@ def run_complete_pipeline(options):
                     options.write_discriminative_peptides,
                     options.print_annotations,
                     options.write_xlsx,
+                    normalization_factors,
                     output,
                     options.inclusion_threshold)
 
@@ -727,6 +852,7 @@ def main():
     """
 
     options = parse_commandline(argv)
+    normalization_factors = parse_normalization_factors(options.species_normalization)
 
     if options.pre_existing:
         sample_databases = [Sample_DB_wrapper(filename, create_new=False) for filename in options.FILE]
@@ -743,6 +869,7 @@ def main():
                 options.write_discriminative_peptides,
                 options.print_annotations,
                 options.write_xlsx,
+                normalization_factors,
                 output,
                 options.inclusion_threshold)
     else:

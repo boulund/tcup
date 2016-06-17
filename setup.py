@@ -49,6 +49,7 @@ setup(
     keywords="microbial typing characterization proteomics proteotyping antibiotic resistance",
 
     packages=find_packages(exclude=["docs", "tests"]),
+    package_data={"tcup": ["tcup/species_normalization.tab"]},
 
     install_requires=[
         "ete3",
@@ -70,8 +71,10 @@ setup(
             "antibiotic_resistance = tcup.antibiotic_resistance:main",
             "construct_resfinder_db = tcup.construct_resfinder_db:main",
             "taxonomic_composition = tcup.taxonomic_composition:main",
-            "taxref_db = tcup.taxref_db:main"
+            "taxref_db = tcup.taxref_db:main",
+            "run_tcup = tcup.run_tcup:main"
         ]
-    }
+    },
+    include_package_data=True,
 )
 
