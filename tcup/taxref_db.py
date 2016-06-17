@@ -149,7 +149,14 @@ class NCBITaxa_mod(NCBITaxa):
         :param refseqs:  Nested list/tuple with sequence header taxid pairs.
         """
 
-        self.db.executemany("INSERT INTO refseqs VALUES (?, ?)", refseqs)
+        try:
+            self.db.executemany("INSERT INTO refseqs VALUES (?, ?)", refseqs)
+        except sqlite3.IntegrityError as e:
+            logging.error("Error inserting header mappings. "
+                          "Duplicate headers detected! "
+                          "No mappings have been commited to DB, "
+                          "remove duplicates and try again!")
+            exit(2)
         self.db.commit()
 
     def create_refseq_indexes(self):
@@ -207,6 +214,7 @@ def parse_refseqs(filename):
     Parse refseq:taxid mappings from tab or space delimited text file.
     """
 
+    logging.debug("Opening %s to parse header mappings", filename)
     with open(filename) as f:
         for line in f:
             try:
@@ -235,16 +243,38 @@ def prepare_db(dbfile, refseqs, refseq_ver, comment):
     n.create_refseq_indexes()
 
 
+def add_sequences_to_existing_db(dbfile, header_mappings, refseq_ver, comment):
+    """
+    Add additional sequences to existing taxref DB file.
+    """
+
+    if not os.path.isfile(dbfile):
+        logging.error("File '%s' not found!", dbfile)
+        exit(1)
+    n = NCBITaxa_mod(dbfile)
+    for header_mappings_file in header_mappings:
+        n.insert_refseqs_into_db(parse_refseqs(header_mappings_file))
+
+
+
+
+
 def main():
     """
     Main function.
     """
     options = parse_commandline(argv)
 
-    prepare_db(options.dbfile, 
-            options.header_mappings, 
-            options.refseq_ver, 
-            options.comment)
+    if options.add_sequences:
+        add_sequences_to_existing_db(options.dbfile,
+                options.header_mappings,
+                options.refseq_ver,
+                options.comment)
+    else:
+        prepare_db(options.dbfile, 
+                options.header_mappings, 
+                options.refseq_ver, 
+                options.comment)
 
 if __name__ == "__main__":
     main()
