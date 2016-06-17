@@ -56,7 +56,7 @@ def parse_args(argv):
             help="Glob pattern for gff files [%(default)s].")
 
     update_db = parser.add_argument_group("update/extend existing annotation DB")
-    update_db.add_argument("--add-annotations",
+    update_db.add_argument("--add-annotations", dest="add_annotations",
             action="store_true",
             default=False,
             help="""Add additional annotations to existing annotation DB.
@@ -180,13 +180,13 @@ def parse_gff(filename):
 def parse_annotations(taxref_db, annotations_dir, pattern):
     """
     Recursively find gff files in refdir.
-
     """
     for gff_file in find_files(annotations_dir, pattern):
         for annotation_info in parse_gff(gff_file):
             try:
                 header = taxref_db.find_refseq_header(annotation_info[0])
             except KeyError:
+                logging.warning("Found no header for '%s' in taxref DB '%s", annotation_info[0], taxref_db.dbfile)
                 continue
             yield (header, *annotation_info[1:])
 
@@ -196,15 +196,17 @@ class Annotation_DB_wrapper():
     Wrapper for annotation DB.
     """
 
-    def __init__(self, dbfile):
-        if os.path.isfile(dbfile):
+    def __init__(self, dbfile, pre_existing=False):
+        if os.path.isfile(dbfile) and not pre_existing:
             logging.warning("About to overwrite existing DB: %s", dbfile)
             time.sleep(1)
             os.remove(dbfile)
+
         self.dbfile = dbfile
         self.db = sqlite3.connect(dbfile)
 
-        self.db.execute("CREATE TABLE annotations (header TEXT, start INT, end INT, product TEXT, features TEXT)")
+        if not pre_existing:
+            self.db.execute("CREATE TABLE annotations (header TEXT, start INT, end INT, product TEXT, features TEXT)")
 
     def insert_annotations(self, annotation_data):
         """
@@ -216,7 +218,7 @@ class Annotation_DB_wrapper():
 
         self.db.executemany("INSERT INTO annotations VALUES (?,?,?,?,?)", annotation_data)
         records = self.db.execute("SELECT Count(*) FROM annotations").fetchone()[0]
-        logging.info("Inserted %s annotation records.", records)
+        logging.info("DB now contains %s annotation records.", records)
         self.db.commit()
 
     def create_indexes(self):
@@ -228,9 +230,6 @@ class Annotation_DB_wrapper():
         self.db.execute("CREATE INDEX i_starts_ends ON annotations(start, end)")
 
 
-
-
-
 def main():
     """
     Main function.
@@ -238,11 +237,12 @@ def main():
     options = parse_args(sys.argv)
 
     taxref_db = Taxref_DB_wrapper(options.taxref)
-    annotation_db = Annotation_DB_wrapper(options.db_filename)
+    annotation_db = Annotation_DB_wrapper(options.db_filename, options.add_annotations)
     for annotations_dir in options.annotation_dirs:
         annotation_generator = parse_annotations(taxref_db, annotations_dir, options.glob_pattern_gff)
         annotation_db.insert_annotations(annotation_generator)
-    annotation_db.create_indexes()
+    if not options.add_annotations:
+        annotation_db.create_indexes()
 
 
 if __name__ == "__main__":
