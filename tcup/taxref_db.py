@@ -42,6 +42,59 @@ except ImportError:
     from utils import read_fasta, find_files, grouper, existing_file
 
 
+def parse_commandline(argv):
+    """
+    Parse commandline arguments.
+    """
+
+    desc = """Prepare a TCUP "taxref" taxonomy reference database. 
+    Uses header->taxid mappings to create a ready-to-use
+    TCUP taxonomy reference database (taxref) to be filled in with
+    sample data.  Fredrik Boulund (c) 2016."""
+    parser = argparse.ArgumentParser(description=desc)
+
+    parser.add_argument("header_mappings", nargs="+",
+            help="Path(s) to or filename(s) of tab-delimited text file with header->taxid mappings")
+    parser.add_argument("--dbfile", type=str, dest="dbfile",
+            default="taxref.sqlite3", 
+            help="Filename to write the TCUP taxref database to [%(default)s].")
+    parser.add_argument("--db-refseq-ver", dest="refseq_ver", type=str,
+            default="",
+            help="Specify RefSeq version, e.g. '2015-11-15'.")
+    parser.add_argument("--db-comment", dest="comment", type=str,
+            default="",
+            help="A database creation comment added to the SQLite3 database.")
+
+    update_db = parser.add_argument_group("update/extend existing taxref DB")
+    update_db.add_argument("--add-sequences",
+            action="store_true",
+            default=False,
+            help="""Read additional sequences from header_mappings to add to 
+                existing taxref DB. 
+                WARNING: Will overwrite existing taxref DB specified by --dbfile.""")
+
+    other = parser.add_argument_group("other")
+    other.add_argument("--loglevel", choices=["INFO", "DEBUG"], 
+            default="INFO", 
+            help="Set logging level [%(default)s].")
+    other.add_argument("--logfile", 
+            default=False,
+            help="Log to file instead of STDOUT.")
+
+    if len(argv) < 2:
+        parser.print_help()
+        exit()
+
+    options = parser.parse_args()
+    
+    if options.logfile:
+        logging.basicConfig(level=options.loglevel, filename=options.logfile)
+    else:
+        logging.basicConfig(level=options.loglevel)
+
+    return options
+
+
 class NCBITaxa_mod(NCBITaxa):
     """
     Extended/improved version of ete3.NCBITaxa.
@@ -96,7 +149,14 @@ class NCBITaxa_mod(NCBITaxa):
         :param refseqs:  Nested list/tuple with sequence header taxid pairs.
         """
 
-        self.db.executemany("INSERT INTO refseqs VALUES (?, ?)", refseqs)
+        try:
+            self.db.executemany("INSERT INTO refseqs VALUES (?, ?)", refseqs)
+        except sqlite3.IntegrityError as e:
+            logging.error("Error inserting header mappings. "
+                          "Duplicate headers detected! "
+                          "No mappings have been commited to DB, "
+                          "remove duplicates and try again!")
+            exit(2)
         self.db.commit()
 
     def create_refseq_indexes(self):
@@ -154,6 +214,7 @@ def parse_refseqs(filename):
     Parse refseq:taxid mappings from tab or space delimited text file.
     """
 
+    logging.debug("Opening %s to parse header mappings", filename)
     with open(filename) as f:
         for line in f:
             try:
@@ -182,47 +243,19 @@ def prepare_db(dbfile, refseqs, refseq_ver, comment):
     n.create_refseq_indexes()
 
 
-def parse_commandline(argv):
+def add_sequences_to_existing_db(dbfile, header_mappings, refseq_ver, comment):
     """
-    Parse commandline arguments.
+    Add additional sequences to existing taxref DB file.
     """
 
-    desc = """Prepare a TCUP "taxref" taxonomy reference database. 
-    Uses header->taxid mappings to create a ready-to-use
-    TCUP taxonomy reference database (taxref) to be filled in with
-    sample data.  Fredrik Boulund (c) 2016."""
-    parser = argparse.ArgumentParser(description=desc)
+    if not os.path.isfile(dbfile):
+        logging.error("File '%s' not found!", dbfile)
+        exit(1)
+    n = NCBITaxa_mod(dbfile)
+    for header_mappings_file in header_mappings:
+        n.insert_refseqs_into_db(parse_refseqs(header_mappings_file))
 
-    parser.add_argument("header_mappings", nargs="+",
-            help="Path(s) to or filename(s) of tab-delimited text file with header->taxid mappings")
-    parser.add_argument("--dbfile", type=str, dest="dbfile",
-            default="taxref.sqlite3", 
-            help="Filename to write the TCUP taxref database to [%(default)s].")
-    parser.add_argument("--db-refseq-ver", dest="refseq_ver", type=str,
-            default="",
-            help="Specify RefSeq version, e.g. '2015-11-15'.")
-    parser.add_argument("--db-comment", dest="comment", type=str,
-            default="",
-            help="A database creation comment added to the SQLite3 database.")
-    parser.add_argument("--loglevel", choices=["INFO", "DEBUG"], 
-            default="INFO", 
-            help="Set logging level [%(default)s].")
-    parser.add_argument("--logfile", 
-            default=False,
-            help="Log to file instead of STDOUT.")
 
-    if len(argv) < 3:
-        parser.print_help()
-        exit()
-
-    options = parser.parse_args()
-    
-    if options.logfile:
-        logging.basicConfig(level=options.loglevel, filename=options.logfile)
-    else:
-        logging.basicConfig(level=options.loglevel)
-
-    return options
 
 
 
@@ -232,10 +265,16 @@ def main():
     """
     options = parse_commandline(argv)
 
-    prepare_db(options.dbfile, 
-            options.header_mappings, 
-            options.refseq_ver, 
-            options.comment)
+    if options.add_sequences:
+        add_sequences_to_existing_db(options.dbfile,
+                options.header_mappings,
+                options.refseq_ver,
+                options.comment)
+    else:
+        prepare_db(options.dbfile, 
+                options.header_mappings, 
+                options.refseq_ver, 
+                options.comment)
 
 if __name__ == "__main__":
     main()
