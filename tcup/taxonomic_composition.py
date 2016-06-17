@@ -424,11 +424,17 @@ class Sample_DB_wrapper():
         Returns a dictionary with cumulative rank:count mappings.
         """
         logging.debug("Getting cumulative rank:count mappings.")
+
+        # Do not include the following 'no rank' nodes in the summary (taxid):
+        #   root (1)
+        #   cellular organisms (131567)
+        #   Terrabacteria group (1783272)
         cmd = """SELECT rank, sum(count) FROM cumulative
           JOIN taxref.species
           ON taxref.species.taxid = cumulative.taxid
           WHERE cumulative.taxid != 1 
             AND cumulative.taxid != 131567
+            AND cumulative.taxid != 1783272
           GROUP BY rank
         """
         result = self.db.execute(cmd).fetchall()
