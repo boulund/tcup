@@ -641,7 +641,7 @@ def print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, norm
             "Cumulative", "Count", "%", "Rank", "Description"), file=outfile)
 
     for cum_count, count, rank, spname in disc_peps_per_rank:
-        if spname in ("root", "cellular organisms"):
+        if spname in ("root", "cellular organisms", "Terrabacteria group"):
             continue
         percentage = cum_count/rank_counts[rank] * 100
         if normalization_factors:
@@ -718,7 +718,7 @@ def write_results_xlsx(disc_peps_per_rank, rank_counts, hits, results_filename, 
     for row, data in enumerate(disc_peps_per_rank, start=1):
         row = row - row_adjustment
         cum_count, count, rank, spname = data
-        if spname == "root" or spname =="cellular organisms":
+        if spname == "root" or spname =="cellular organisms" or spname == "Terrabacteria group":
             row_adjustment += 1
             continue
         if normalization_factors:
