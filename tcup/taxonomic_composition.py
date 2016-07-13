@@ -33,9 +33,9 @@ import re
 import xlsxwriter
 
 try:
-    from utils import find_files, grouper, existing_file
+    from utils import find_files, grouper, existing_file, read_fasta
 except ImportError:
-    from tcup.utils import find_files, grouper, existing_file
+    from tcup.utils import find_files, grouper, existing_file, read_fasta
 
 
 def parse_commandline(argv):
@@ -55,6 +55,9 @@ def parse_commandline(argv):
             type=existing_file,
             default="annotation_db.sqlite3",
             help="Path to annotation sqlite3 DB [%(default)s].")
+    parser.add_argument("--peptide-fasta", dest="peptide_fasta", metavar="PEPFASTA",
+            default="",
+            help="Path to peptide FASTA file used in mapping, used to retrieve peptide sequences.")
     parser.add_argument("--sample-db", dest="sample_db", metavar="SAMPLEDB",
             default=False,
             help="Filename of sqlite3 db created for the sample [<sample.blast8>.sqlite3].")
@@ -291,7 +294,7 @@ class Sample_DB_wrapper():
         self.db = sqlite3.connect(self.dbfile)
         logging.info("Creating new sample DB %s", self.dbfile)
         self.db.execute("CREATE TABLE mappings(peptide TEXT, target TEXT, start INT, end INT, identity REAL, matches INT)")
-        self.db.execute("CREATE TABLE peptides(peptide TEXT PRIMARY KEY, discriminative_taxid INT)")
+        self.db.execute("CREATE TABLE peptides(peptide TEXT PRIMARY KEY, sequence TEXT DEFAULT '', discriminative_taxid INT)")
         self.db.execute("CREATE TABLE cumulative(taxid INT PRIMARY KEY, count INT DEFAULT 0)")
         self.db.execute("CREATE TABLE rank_counts(rank TEXT PRIMARY KEY, count INT DEFAULT 0)")
 
@@ -343,6 +346,20 @@ class Sample_DB_wrapper():
         self.db.execute("INSERT INTO peptides (peptide) SELECT DISTINCT peptide FROM mappings")
         self.db.execute("CREATE INDEX i_peptides_disc ON peptides(discriminative_taxid)")
         self.db.execute("CREATE INDEX i_mappings_targets ON mappings(target)")
+        self.db.commit()
+
+
+    def insert_peptide_sequences_into_db(self, peptide_fasta):
+        """
+        Insert peptide sequences into DB using peptide FASTA file.
+        NOTE: Risk for high memory consumption as entire FASTA is kept in memory.
+        """
+        sequences = {header.split()[0]: sequence for header, sequence in read_fasta(peptide_fasta, keep_formatting=False)}
+
+        discriminative_peptides = self.db.execute("SELECT peptide FROM peptides").fetchall()
+        for peptide in discriminative_peptides:
+            self.db.execute("UPDATE peptides SET sequence = ? WHERE peptide = ?", (sequences[peptide[0]], peptide[0]))
+            #logging.debug("Added sequence %s for peptide %s", sequences[peptide[0]], peptide[0]) # TODO: verbose
         self.db.commit()
 
     
@@ -448,7 +465,7 @@ class Sample_DB_wrapper():
 
         rank_set = self.rank_hierarchy[self.ranks[rank]:]
 
-        cmd = """SELECT peptide, rank, spname FROM peptides
+        cmd = """SELECT peptide, sequence, rank, spname FROM peptides
           JOIN taxref.species ON taxref.species.taxid = peptides.discriminative_taxid
           WHERE rank IN ({})
           ORDER BY rank""".format(",".join("?"*len(rank_set)))
@@ -663,9 +680,9 @@ def write_discriminative_peptides(discriminative, outfilename):
     """
     with open(outfilename, 'w') as outfile:
         print("Discriminative peptides".center(60, "-"), file=outfile)
-        print("{:<20} {:<15} {:<30}".format("Peptide", "Rank", "Description"), file=outfile)
+        print("{:<20} {:<35} {:<15} {:<30}".format("Peptide", "Sequence", "Rank", "Description"), file=outfile)
         for d in discriminative: 
-            print("{:<20} {:<15} {:<30}".format(*d), file=outfile)
+            print("{:<20} {:<35} {:<15} {:<30}".format(*d), file=outfile)
 
 
 def print_annotation_hits(hits, outfile):
@@ -832,6 +849,9 @@ def run_complete_pipeline(options):
                 options.max_pid_diff, 
                 blacklisted_seqs)
         sample_db.insert_blat_hits_into_db(blat_parser)
+        if options.peptide_fasta:
+            logging.debug("Inserting peptide sequences into sample DB.")
+            sample_db.insert_peptide_sequences_into_db(options.peptide_fasta)
 
         sample_db.attach_taxref_db(options.taxref_db)
         sample_db.determine_discriminative_ranks()
