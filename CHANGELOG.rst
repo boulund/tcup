@@ -20,7 +20,7 @@ lists the main changes introduced by that release.
 
 Added
 -----
-*
+* Peptide sequence is now included in --write-discriminative-peptides output
 
 Fixed
 -----
