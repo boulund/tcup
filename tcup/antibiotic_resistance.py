@@ -171,6 +171,7 @@ def best_matching_family_per_peptide(blast8file, min_identity, resfinder_db, kee
                                 key=lambda x: x[0]):
         matching_targets = (target for _, target, _ in hits)
         matching_families = set(resfinder[target] for target in matching_targets)
+        print(query, matching_families)
         yield matching_families
 
 
