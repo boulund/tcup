@@ -22,7 +22,7 @@ setup(
     name="tcup",
 
     # This project aims to follow semantic versioning (www.semver.org)
-    version="1.0.0",
+    version="1.1.0",
 
     description="TCUP: Typing and Characterization using Proteomics",
     long_description=long_description,
