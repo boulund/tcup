@@ -1,8 +1,9 @@
 #!/usr/bin/env python3.5
+# Get the peptide sequence for discriminative peptides in the TCUP output.
+# Fredrik Boulund 2016
 
 from sys import argv, exit
 from utils import read_fasta as read_fasta
-
 
 if len(argv) < 2:
     print("usage: script.py FASTA discriminative_peptides.txt")
@@ -10,7 +11,6 @@ if len(argv) < 2:
 
 fastafile = argv[1]
 discpeps = argv[2]
-
 
 disc = {}
 with open(discpeps) as f:
@@ -21,7 +21,6 @@ with open(discpeps) as f:
         translation = str.maketrans("{'}", "   ")
         families = families.translate(translation).split(",")
         disc[peptide] = [fam.strip() for fam in families]
-
 
 disc_seqs = {}
 for header, sequence in read_fasta(fastafile):
