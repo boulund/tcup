@@ -113,8 +113,8 @@ bacteria are discriminative, and at what taxonomic level.
 
 Discriminative peptides
 -----------------------
-The names of all discriminative peptides along with the rank at which they were
-discriminative can be output to a text file using the
+The names and sequences of all discriminative peptides along with the rank at
+which they were discriminative can be output to a text file using the
 ``--write-discriminative-peptides`` command line option.
 
 Antibiotic resistance

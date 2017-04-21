@@ -20,13 +20,33 @@ lists the main changes introduced by that release.
 
 Added
 -----
-* Peptide sequence is now included in --write-discriminative-peptides output
+*
 
 Fixed
 -----
 *
 
-[First release] 2016-??-?? version 1.0.0
+
+[Second release] 2017-04-21 version 1.1.0
+****************************************
+Added
+-----
+* Peptide sequence is now included in `--write-discriminative-peptides` output
+* `--reassign-taxids` now allows to modify taxid assignments for refseqs in the
+  taxref DB.
+* `--peptide-fasta` to include peptide sequences in `taxonomic composition`
+  output file.
+* `--add-annotations` to add annotations to annotation DB. 
+* New helper script: `get_peptide_sequences.py` to print discriminative
+  peptides and their taxonomic assignments.
+
+Fixed
+-----
+* Removed `Terrabacteria group` with `no rank` from output listing.
+* No longer try to insert taxids into taxref DB when pre existing sample DB is used.
+
+
+[First release] 2016-06-13 version 1.0.0
 ****************************************
 Added
 -----

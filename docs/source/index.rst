@@ -40,14 +40,12 @@ the code at the project's Bitbucket_ page.
 
 Citing |name|
 *************
-If you find |name| useful, please cite us!
-The method is described in the following paper:
+If you find |name| useful, please cite the following paper that describes the
+method:
 
-| Boulund et al. 
-| In preparation.
-| Title tbd. 
-| Journal tbd.
-| *DOI:* tbd
+| Fredrik Boulund, Roger Karlsson, Lucia Gonzales-Siles, Anna Johnning, Nahid Karami, Omar AL-Bayati, Christina Ahren, Edward R. B. Moore, and Erik Kristiansson
+| TCUP: Typing and characterization of bacteria using bottom-up tandem mass spectrometry proteomics
+| Mol Cell Proteomics mcp.M116.061721. First Published on April 18, 2017, doi:10.1074/mcp.M116.061721
 
 
 Documentation

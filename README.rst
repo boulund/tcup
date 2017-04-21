@@ -20,6 +20,15 @@ About
 :License: ISC
 
 
+Publication
+***********
+If you use TCUP in your work, please cite::
+
+   Fredrik Boulund, Roger Karlsson, Lucia Gonzales-Siles, Anna Johnning, Nahid Karami, Omar AL-Bayati, Christina Ahren, Edward R. B. Moore, and Erik Kristiansson
+   TCUP: Typing and characterization of bacteria using bottom-up tandem mass spectrometry proteomics
+   Mol Cell Proteomics mcp.M116.061721. First Published on April 18, 2017, doi:10.1074/mcp.M116.061721
+
+
 Installation 
 ************
 Detailed installation instructions are available in the online
