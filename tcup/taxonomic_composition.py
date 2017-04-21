@@ -33,9 +33,9 @@ import re
 import xlsxwriter
 
 try:
-    from utils import find_files, grouper, existing_file
+    from utils import find_files, grouper, existing_file, read_fasta
 except ImportError:
-    from tcup.utils import find_files, grouper, existing_file
+    from tcup.utils import find_files, grouper, existing_file, read_fasta
 
 
 def parse_commandline(argv):
@@ -55,6 +55,9 @@ def parse_commandline(argv):
             type=existing_file,
             default="annotation_db.sqlite3",
             help="Path to annotation sqlite3 DB [%(default)s].")
+    parser.add_argument("--peptide-fasta", dest="peptide_fasta", metavar="PEPFASTA",
+            default="",
+            help="Path to peptide FASTA file used in mapping, used to retrieve peptide sequences.")
     parser.add_argument("--sample-db", dest="sample_db", metavar="SAMPLEDB",
             default=False,
             help="Filename of sqlite3 db created for the sample [<sample.blast8>.sqlite3].")
@@ -291,16 +294,16 @@ class Sample_DB_wrapper():
         self.db = sqlite3.connect(self.dbfile)
         logging.info("Creating new sample DB %s", self.dbfile)
         self.db.execute("CREATE TABLE mappings(peptide TEXT, target TEXT, start INT, end INT, identity REAL, matches INT)")
-        self.db.execute("CREATE TABLE peptides(peptide TEXT PRIMARY KEY, discriminative_taxid INT)")
+        self.db.execute("CREATE TABLE peptides(peptide TEXT PRIMARY KEY, sequence TEXT DEFAULT '', discriminative_taxid INT)")
         self.db.execute("CREATE TABLE cumulative(taxid INT PRIMARY KEY, count INT DEFAULT 0)")
         self.db.execute("CREATE TABLE rank_counts(rank TEXT PRIMARY KEY, count INT DEFAULT 0)")
 
-
-    def attach_taxref_db(self, taxref_db_file):
+    def attach_taxref_db(self, taxref_db_file, pre_existing=False):
         self.db.execute("ATTACH ? as taxref", (taxref_db_file, ))
         logging.debug("Attached taxref DB")
-        self.db.execute("INSERT OR IGNORE INTO cumulative (taxid) SELECT taxid from taxref.species")
-        self.db.commit()
+        if not pre_existing:
+            self.db.execute("INSERT OR IGNORE INTO cumulative (taxid) SELECT taxid from taxref.species")
+            self.db.commit()
     
     def attach_annotation_db(self, annotation_db_file):
         self.db.execute("ATTACH ? as annotationdb", (annotation_db_file, ))
@@ -343,6 +346,20 @@ class Sample_DB_wrapper():
         self.db.execute("INSERT INTO peptides (peptide) SELECT DISTINCT peptide FROM mappings")
         self.db.execute("CREATE INDEX i_peptides_disc ON peptides(discriminative_taxid)")
         self.db.execute("CREATE INDEX i_mappings_targets ON mappings(target)")
+        self.db.commit()
+
+
+    def insert_peptide_sequences_into_db(self, peptide_fasta):
+        """
+        Insert peptide sequences into DB using peptide FASTA file.
+        NOTE: Risk for high memory consumption as entire FASTA is kept in memory.
+        """
+        sequences = {header.split()[0]: sequence for header, sequence in read_fasta(peptide_fasta, keep_formatting=False)}
+
+        discriminative_peptides = self.db.execute("SELECT peptide FROM peptides").fetchall()
+        for peptide in discriminative_peptides:
+            self.db.execute("UPDATE peptides SET sequence = ? WHERE peptide = ?", (sequences[peptide[0]], peptide[0]))
+            #logging.debug("Added sequence %s for peptide %s", sequences[peptide[0]], peptide[0]) # TODO: verbose
         self.db.commit()
 
     
@@ -424,11 +441,17 @@ class Sample_DB_wrapper():
         Returns a dictionary with cumulative rank:count mappings.
         """
         logging.debug("Getting cumulative rank:count mappings.")
+
+        # Do not include the following 'no rank' nodes in the summary (taxid):
+        #   root (1)
+        #   cellular organisms (131567)
+        #   Terrabacteria group (1783272)
         cmd = """SELECT rank, sum(count) FROM cumulative
           JOIN taxref.species
           ON taxref.species.taxid = cumulative.taxid
           WHERE cumulative.taxid != 1 
             AND cumulative.taxid != 131567
+            AND cumulative.taxid != 1783272
           GROUP BY rank
         """
         result = self.db.execute(cmd).fetchall()
@@ -442,7 +465,7 @@ class Sample_DB_wrapper():
 
         rank_set = self.rank_hierarchy[self.ranks[rank]:]
 
-        cmd = """SELECT peptide, rank, spname FROM peptides
+        cmd = """SELECT peptide, sequence, rank, spname FROM peptides
           JOIN taxref.species ON taxref.species.taxid = peptides.discriminative_taxid
           WHERE rank IN ({})
           ORDER BY rank""".format(",".join("?"*len(rank_set)))
@@ -635,7 +658,7 @@ def print_cumulative_discriminative_counts(disc_peps_per_rank, rank_counts, norm
             "Cumulative", "Count", "%", "Rank", "Description"), file=outfile)
 
     for cum_count, count, rank, spname in disc_peps_per_rank:
-        if spname in ("root", "cellular organisms"):
+        if spname in ("root", "cellular organisms", "Terrabacteria group"):
             continue
         percentage = cum_count/rank_counts[rank] * 100
         if normalization_factors:
@@ -657,9 +680,9 @@ def write_discriminative_peptides(discriminative, outfilename):
     """
     with open(outfilename, 'w') as outfile:
         print("Discriminative peptides".center(60, "-"), file=outfile)
-        print("{:<20} {:<15} {:<30}".format("Peptide", "Rank", "Description"), file=outfile)
+        print("{:<20} {:<35} {:<15} {:<30}".format("Peptide", "Sequence", "Rank", "Description"), file=outfile)
         for d in discriminative: 
-            print("{:<20} {:<15} {:<30}".format(*d), file=outfile)
+            print("{:<20} {:<35} {:<15} {:<30}".format(*d), file=outfile)
 
 
 def print_annotation_hits(hits, outfile):
@@ -712,7 +735,7 @@ def write_results_xlsx(disc_peps_per_rank, rank_counts, hits, results_filename, 
     for row, data in enumerate(disc_peps_per_rank, start=1):
         row = row - row_adjustment
         cum_count, count, rank, spname = data
-        if spname == "root" or spname =="cellular organisms":
+        if spname == "root" or spname =="cellular organisms" or spname == "Terrabacteria group":
             row_adjustment += 1
             continue
         if normalization_factors:
@@ -826,6 +849,9 @@ def run_complete_pipeline(options):
                 options.max_pid_diff, 
                 blacklisted_seqs)
         sample_db.insert_blat_hits_into_db(blat_parser)
+        if options.peptide_fasta:
+            logging.debug("Inserting peptide sequences into sample DB.")
+            sample_db.insert_peptide_sequences_into_db(options.peptide_fasta)
 
         sample_db.attach_taxref_db(options.taxref_db)
         sample_db.determine_discriminative_ranks()
@@ -857,7 +883,7 @@ def main():
     if options.pre_existing:
         sample_databases = [Sample_DB_wrapper(filename, create_new=False) for filename in options.FILE]
         for sample_db in sample_databases:
-            sample_db.attach_taxref_db(options.taxref_db)
+            sample_db.attach_taxref_db(options.taxref_db, pre_existing=True)
         if options.output:
             output = open(options.output, 'w')
         else:
