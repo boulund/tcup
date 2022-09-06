@@ -19,6 +19,9 @@ About
 :Contact: erik.kristiansson@chalmers.se
 :License: ISC
 
+.. image:: https://zenodo.org/badge/202481367.svg
+   :target: https://zenodo.org/badge/latestdoi/202481367
+
 
 Publication
 ***********
