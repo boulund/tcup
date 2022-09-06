@@ -19,9 +19,6 @@ About
 :Contact: erik.kristiansson@chalmers.se
 :License: ISC
 
-.. image:: https://zenodo.org/badge/202481367.svg
-   :target: https://zenodo.org/badge/latestdoi/202481367
-
 
 Publication
 ***********
@@ -30,6 +27,11 @@ If you use TCUP in your work, please cite::
    Fredrik Boulund, Roger Karlsson, Lucia Gonzales-Siles, Anna Johnning, Nahid Karami, Omar AL-Bayati, Christina Ahren, Edward R. B. Moore, and Erik Kristiansson
    TCUP: Typing and characterization of bacteria using bottom-up tandem mass spectrometry proteomics
    Mol Cell Proteomics mcp.M116.061721. First Published on April 18, 2017, doi:10.1074/mcp.M116.061721
+
+To cite this repository, please use:
+
+.. image:: https://zenodo.org/badge/202481367.svg
+   :target: https://zenodo.org/badge/latestdoi/202481367
 
 
 Installation 
