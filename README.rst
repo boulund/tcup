@@ -16,7 +16,7 @@ TCUP.
 About
 *****
 :Authors: Fredrik Boulund
-:Contact: fredrik.boulund@chalmers.se
+:Contact: erik.kristiansson@chalmers.se
 :License: ISC
 
 
