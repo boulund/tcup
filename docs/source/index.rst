@@ -21,8 +21,8 @@ it works, check out :doc:`installation` right away to get started!
 
 About
 *****
-:Authors: Fredrik Boulund, 
-:Contact: fredrik.boulund@chalmers.se
+:Authors: Fredrik Boulund 
+:Contact: erik.kristiansson@chalmers.se
 :License: |license|
 
 This is the documentation for |name| version |release|, last updated |today|.  
